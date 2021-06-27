@@ -2,9 +2,9 @@
 
 
  
-TO DO: \\
-1- Fare i tutorial ultima release di Flatland
-2- Vedere i due use case descritti abbstanza in dettaglio nelle specifiche
+TO DO:   
+1- Fare i tutorial ultima release di Flatland    
+2- Vedere i due use case descritti abbstanza in dettaglio nelle specifiche   
 3- Imparare a creare una rete custom, da file (Rail generator e Schedule generator)
 X- Avere ben presente le specifiche
 ---
