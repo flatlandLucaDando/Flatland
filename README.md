@@ -6,3 +6,7 @@
 # Scripts:    
 - Contiene uno script per convertire le immagini svg a png
 
+# Specifications:
+- Contiene le specifiche del sistema 'flatland'
+
+# 
