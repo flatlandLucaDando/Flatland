@@ -9,4 +9,7 @@
 # Specifications:
 - Contiene le specifiche del sistema 'flatland'
 
-# 
+# Tests e Tutorial:
+- Contengono test e tutorial di 'flatland'
+
+
