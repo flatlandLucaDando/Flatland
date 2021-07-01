@@ -50,7 +50,7 @@ speed_ration_map = {1.: 0.25,  # Fast passenger train
 
 schedule_generator = sparse_schedule_generator(speed_ration_map)
 
-
+# This create an environment, width and height 
 
 env = RailEnv(  width=40,
                 height=30,
