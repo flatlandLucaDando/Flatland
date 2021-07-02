@@ -126,9 +126,11 @@ class SparseSchedGen(BaseSchedGen):
         :param num_resets: How often the generator has been reset.
         :return: Returns the generator to the rail constructor
         """
-
+        
         _runtime_seed = self.seed + num_resets
-
+        ############################################################
+        #########  UNDERSTAND HOW TO PASS THE HINTS     ############
+        ############################################################
         train_stations = hints['train_stations']
         city_positions = hints['city_positions']
         city_orientation = hints['city_orientations']
