@@ -208,7 +208,7 @@ def complex_rail_generator(nr_start_goal=1,
     return generator
 
 
-def rail_from_manual_specifications_generator(rail_spec):
+def rail_from_manual_specifications_generator(rail_spec, num_of_agents: int, train_stations_position: list):
     """
     Utility to convert a rail given by manual specification as a map of tuples
     (cell_type, rotation), to a transition map with the correct 16-bit
@@ -226,10 +226,20 @@ def rail_from_manual_specifications_generator(rail_spec):
     function
         Generator function that always returns a GridTransitionMap object with
         the matrix of correct 16-bit bitmaps for each rail_spec_of_cell.
+
+    added
+        num_agents: specify the number of agents
+        train_stations: specify where the train stations are
     """
+
 
     def generator(width: int, height: int, num_agents: int, num_resets: int = 0,
                   np_random: RandomState = None) -> RailGenerator:
+
+        # PROVA
+        city_positions = [[10,2], [10, 10], [13, 0]]
+        city_orientations = 1
+        
         rail_env_transitions = RailEnvTransitions()
 
         height = len(rail_spec)
@@ -248,7 +258,12 @@ def rail_from_manual_specifications_generator(rail_spec):
                 effective_transition_cell = rail_env_transitions.rotate_transition(basic_type_of_cell_, rotation_cell_)
                 rail.set_transitions((r, c), effective_transition_cell)
 
-        return [rail, None]
+        return rail,  {'agents_hints': {
+            'num_agents': num_of_agents,            
+            'city_positions': city_positions,
+            'train_stations': train_stations_position,
+            'city_orientations': city_orientations
+        }}
 
     return generator
 
