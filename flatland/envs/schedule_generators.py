@@ -52,7 +52,70 @@ class BaseSchedGen(object):
     def __call__(self, *args, **kwargs):
         return self.generate(*args, **kwargs)
 
+def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
+    return Custom_schedule_generator(speed_ratio_map, seed)
 
+#############################################################################################################
+# TO DO, the agents start from a defined point at different time stamp. Remember this fact. Is very important
+#############################################################################################################
+
+class Custom_schedule_generator(BaseSchedGen):
+    """
+
+    This is a custom schedule generator, create a schedule with the timetable, and the station where the trains should pass
+    """
+
+    def generate(self, rail: GridTransitionMap, num_agents: int, hints: Any = None, station_target: list = 0, station_to_traverse: list = 0, timetable: list = 0, num_resets: int = 0,
+                  np_random: RandomState = None) -> Schedule:
+        """
+
+        The generator that assigns tasks to all the agents
+        :param rail: Rail infrastructure given by the rail_generator
+        :param num_agents: Number of agents to include in the schedule
+        :param hints: Hints provided by the rail_generator These include positions of start/target positions
+        :param num_resets: How often the generator has been reset.
+        :return: Returns the generator to the rail constructor
+        """
+
+        _runtime_seed = self.seed + num_resets
+
+        train_stations = hints['train_stations']
+        city_positions = hints['city_positions']
+        city_orientation = hints['city_orientations']
+        max_num_agents = hints['num_agents']
+        city_orientations = hints['city_orientations']
+
+        ######### Debug
+        #print('Train stations:', train_stations,' City position:', city_positions, 'Len city position:', type(city_positions), 'City orientation:', city_orientation,'Max num agents:',  max_num_agents)
+
+        if num_agents > max_num_agents:
+            num_agents = max_num_agents
+            warnings.warn("Too many agents! Changes number of agents.")
+        # Place agents and targets within available train stations
+        agents_position = []
+        agents_target = []
+        agents_direction = []
+
+        ################ TO DO #################################    
+        # Define the station the agent have to go across and the timetable and the target
+
+
+
+        if self.speed_ratio_map:
+            speeds = speed_initialization_helper(num_agents, self.speed_ratio_map, seed=_runtime_seed, np_random=np_random)
+        else:
+            speeds = [1.0] * len(agents_position)
+
+        # We add multiply factors to the max number of time steps to simplify task in Flatland challenge.
+        # These factors might change in the future.
+        timedelay_factor = 4
+        alpha = 2
+        max_episode_steps = int(
+            timedelay_factor * alpha * (rail.width + rail.height + num_agents / len(city_positions)))
+
+        return Schedule(agent_positions=agents_position, agent_directions=agents_direction,
+                        agent_targets=agents_target, agent_speeds=speeds, agent_malfunction_rates=None,
+                        max_episode_steps=max_episode_steps)
 
 def complex_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
     """
