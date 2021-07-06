@@ -52,20 +52,22 @@ class BaseSchedGen(object):
     def __call__(self, *args, **kwargs):
         return self.generate(*args, **kwargs)
 
+      
+      # CUSTOM SCHEDULE GENERATOR DOESNT WORK for now
 def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
-    return Custom_schedule_generator(speed_ratio_map, seed)
+    #return Custom_schedule_generator(speed_ratio_map, seed)
 
 #############################################################################################################
 # TO DO, the agents start from a defined point at different time stamp. Remember this fact. Is very important
 #############################################################################################################
 
-class Custom_schedule_generator(BaseSchedGen):
+#class Custom_schedule_generator(BaseSchedGen):
     """
 
     This is a custom schedule generator, create a schedule with the timetable, and the station where the trains should pass
     """
 
-    def generate(self, rail: GridTransitionMap, num_agents: int, hints: Any = None, station_target: list = 0, station_to_traverse: list = 0, timetable: list = 0, num_resets: int = 0,
+    def generate_custom(rail: GridTransitionMap, num_agents: int, hints: Any = None, station_target: list = 0, station_to_traverse: list = 0, timetable: list = 0, num_resets: int = 0,
                   np_random: RandomState = None) -> Schedule:
         """
 
@@ -77,7 +79,7 @@ class Custom_schedule_generator(BaseSchedGen):
         :return: Returns the generator to the rail constructor
         """
 
-        _runtime_seed = self.seed + num_resets
+        print(station_target, station_to_traverse, timetable)
 
         train_stations = hints['train_stations']
         city_positions = hints['city_positions']
@@ -95,15 +97,16 @@ class Custom_schedule_generator(BaseSchedGen):
         agents_position = []
         agents_target = []
         agents_direction = []
-        agents_time = []
 
         ################ TO DO #################################    
         # Define the station the agent have to go across and the timetable and the target
 
+        agents_position = [[22, 20], [22, 0], [8, 12], [1, 32], [16, 49]]
+        agents_target = station_target
+        agents_direction = [1,1,1,1,1]
 
-
-        if self.speed_ratio_map:
-            speeds = speed_initialization_helper(num_agents, self.speed_ratio_map, seed=_runtime_seed, np_random=np_random)
+        if speed_ratio_map:
+            speeds = speed_initialization_helper(num_agents, speed_ratio_map, seed=_runtime_seed, np_random=np_random)
         else:
             speeds = [1.0] * len(agents_position)
 
@@ -111,12 +114,16 @@ class Custom_schedule_generator(BaseSchedGen):
         # These factors might change in the future.
         timedelay_factor = 4
         alpha = 2
-        max_episode_steps = int(
-            timedelay_factor * alpha * (rail.width + rail.height + num_agents / len(city_positions)))
+        max_episode_steps = 1000
 
         return Schedule(agent_positions=agents_position, agent_directions=agents_direction,
                         agent_targets=agents_target, agent_speeds=speeds, agent_malfunction_rates=None,
                         max_episode_steps=max_episode_steps)
+
+        # THIS IS FOR DEBUG
+    return generate_custom(GridTransitionMap, 5,  {'train_stations': [[22, 0], [22, 20], [8, 12], [1, 32], [16, 49]], 
+        'city_positions' : [[22, 0], [22, 20], [8, 12], [1, 32], [16, 49]], 'city_orientations' : [1,2,1,2,1], 'num_agents' : 5},
+         [[22, 0], [8, 12],  [1, 32],  [1, 32], [22, 20]])
 
 def complex_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
     """
