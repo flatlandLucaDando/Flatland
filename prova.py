@@ -6,6 +6,8 @@ from flatland.envs.schedule_generators import sparse_schedule_generator
 
 # Example generate a rail given a manual specification,
 # a map of tuples (cell_type, rotation)
+# cell_type vary from 0 (void cell) to 11
+# rotation vary from 0°, 90°, 180°, 270°
 
 specs = [[(0, 0),  (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0,0), (0, 0),  (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0),   (0, 0), (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],                          #1
          [(0, 0),  (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0,0), (0, 0),  (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0),   (0, 0), (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (8, 0), (1, 90), (1, 90), (1, 90),(2, 270), (10, 90), (1, 90), (10, 90), (2, 270), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (1, 90), (8, 90), (0, 0), (0, 0), (0, 0)],    #2
@@ -35,6 +37,22 @@ specs = [[(0, 0),  (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0,0), (0, 0),  (0, 0
          [(0, 0),  (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0,0), (0, 0),  (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0),   (0, 0), (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],   #26
          [(0, 0),  (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0,0), (0, 0),  (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0),   (0, 0), (0, 0),  (0, 0),  (0, 0),   (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0),   (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0)]]   #27
 
+# The total number of agents that will be in the environment
+number_of_trains = 10
+
+# Position of train stations in the grid map
+station_a = [22, 0]
+station_b = [22, 20]
+station_c = [8, 12]
+stationo_d = [1, 32]
+station_e = [16, 49]
+
+city_position = [station_a, station_b, station_c, stationo_d, station_e]
+
+"""
+################################################################# 
+############ This is for the different velocities ###############
+#################################################################
 
 # The schedule generator can make very basic schedules with a start point, end point and a speed profile for each agent.
 # The speed profiles can be adjusted directly as well as shown later on. We start by introducing a statistical
@@ -47,11 +65,13 @@ speed_ration_map = {1.: 0.25,  # Fast passenger train
                     1. / 4.: 0.25}  # Slow freight train
 
 # We can now initiate the schedule generator with the given speed profiles
+"""
 
-schedule_generator = sparse_schedule_generator(speed_ration_map)
-
-# This create an environment, width and height 
-
+# Environment take as input:
+#    -the width and height of the grid, 
+#    -the type of rail_generator, 
+#    -the type of schedule generator,
+#    -the number of agents
 env = RailEnv(  width=40,
                 height=30,
                 rail_generator = rail_from_manual_specifications_generator(specs),
