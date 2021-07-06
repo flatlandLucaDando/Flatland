@@ -95,6 +95,7 @@ class Custom_schedule_generator(BaseSchedGen):
         agents_position = []
         agents_target = []
         agents_direction = []
+        agents_time = []
 
         ################ TO DO #################################    
         # Define the station the agent have to go across and the timetable and the target
