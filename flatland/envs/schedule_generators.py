@@ -53,21 +53,20 @@ class BaseSchedGen(object):
         return self.generate(*args, **kwargs)
 
       
-      # CUSTOM SCHEDULE GENERATOR DOESNT WORK for now
 def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
-    #return Custom_schedule_generator(speed_ratio_map, seed)
+    #return Custom_schedule_generator(speed_ratio_map, seed)  # DEBUG
 
 #############################################################################################################
 # TO DO, the agents start from a defined point at different time stamp. Remember this fact. Is very important
 #############################################################################################################
 
-#class Custom_schedule_generator(BaseSchedGen):
+#class Custom_schedule_generator(BaseSchedGen): # DEBUG
     """
 
     This is a custom schedule generator, create a schedule with the timetable, and the station where the trains should pass
     """
 
-    def generate_custom(rail: GridTransitionMap, num_agents: int, hints: Any = None, station_target: list = 0, station_to_traverse: list = 0, timetable: list = 0, num_resets: int = 0,
+    def generate_custom(rail: GridTransitionMap, num_agents: int, hints: Any = None, station_target: list = [(0,0), (0,0)], station_to_traverse: list = 0, timetable: list = 0, num_resets: int = 0,
                   np_random: RandomState = None) -> Schedule:
         """
 
@@ -79,31 +78,33 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         :return: Returns the generator to the rail constructor
         """
 
-        print(station_target, station_to_traverse, timetable)
-
         train_stations = hints['train_stations']
         city_positions = hints['city_positions']
         city_orientation = hints['city_orientations']
         max_num_agents = hints['num_agents']
         city_orientations = hints['city_orientations']
 
-        ######### Debug
+        # DEBUG
         #print('Train stations:', train_stations,' City position:', city_positions, 'Len city position:', type(city_positions), 'City orientation:', city_orientation,'Max num agents:',  max_num_agents)
 
         if num_agents > max_num_agents:
             num_agents = max_num_agents
             warnings.warn("Too many agents! Changes number of agents.")
-        # Place agents and targets within available train stations
+        # Define the target stations and the agent positions depending on the timetable
         agents_position = []
         agents_target = []
         agents_direction = []
 
         ################ TO DO #################################    
-        # Define the station the agent have to go across and the timetable and the target
+        # Define the station the agent have to go across and the timetable
 
-        agents_position = [[22, 20], [22, 0], [8, 12], [1, 32], [16, 49]]
-        agents_target = station_target
+        # DEBUG
+        agents_position = [(21, 36), (21, 1), (8, 12), (1, 32), (16, 49)]
+        agents_target = [(21, 0), (8, 12), (15, 51), (21, 37), (1, 36)]
         agents_direction = [1,1,1,1,1]
+        
+        # DEBUG
+        #print(agents_position, agents_target, station_to_traverse, agents_direction, timetable)  
 
         if speed_ratio_map:
             speeds = speed_initialization_helper(num_agents, speed_ratio_map, seed=_runtime_seed, np_random=np_random)
@@ -115,15 +116,15 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         timedelay_factor = 4
         alpha = 2
         max_episode_steps = 1000
+        
+        # DEBUG
+        #print(agents_position, agents_target, agents_direction)
 
         return Schedule(agent_positions=agents_position, agent_directions=agents_direction,
                         agent_targets=agents_target, agent_speeds=speeds, agent_malfunction_rates=None,
                         max_episode_steps=max_episode_steps)
 
-        # THIS IS FOR DEBUG
-    return generate_custom(GridTransitionMap, 5,  {'train_stations': [[22, 0], [22, 20], [8, 12], [1, 32], [16, 49]], 
-        'city_positions' : [[22, 0], [22, 20], [8, 12], [1, 32], [16, 49]], 'city_orientations' : [1,2,1,2,1], 'num_agents' : 5},
-         [[22, 0], [8, 12],  [1, 32],  [1, 32], [22, 20]])
+    return generate_custom
 
 def complex_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
     """
