@@ -13,7 +13,7 @@
 - Contengono test e tutorial di 'flatland'
 
 # prova.py:
-- Script python che ad ora effettua i primi tre punti (costruisce una ferrovia custom)
+- Script python che implementa uno stude case
 
 # Problema:
 - 1- Fare i tutorial ultima release di Flatland
