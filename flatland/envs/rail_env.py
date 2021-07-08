@@ -17,6 +17,7 @@ from flatland.core.grid.grid_utils import IntVector2D
 from flatland.core.transition_map import GridTransitionMap
 from flatland.envs.agent_utils import EnvAgent, RailAgentStatus
 from flatland.envs.distance_map import DistanceMap
+from flatland.envs.schedule_utils import Schedule
 
 # Need to use circular imports for persistence.
 from flatland.envs import malfunction_generators as mal_gen
@@ -120,6 +121,7 @@ class RailEnv(Environment):
 
     alpha = 1
     beta = 1
+
     Reward function parameters:
 
     - invalid_action_penalty = 0
@@ -143,11 +145,13 @@ class RailEnv(Environment):
     """
     alpha = 1.0
     beta = 1.0
+    theta = 0.5
     # Epsilon to avoid rounding errors
     epsilon = 0.01
     invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
     step_penalty = -1 * alpha
     global_reward = 1 * beta
+    order_rewards = 1 * theta
     stop_penalty = 0  # penalty for stopping a moving agent
     start_penalty = 0  # penalty for starting a stopped agent
 
@@ -354,6 +358,12 @@ class RailEnv(Environment):
         if regenerate_rail or self.rail is None:
 
             if "__call__" in dir(self.rail_generator):
+
+                print('I m generating the railway:')
+                print('=============================')
+
+                print(self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
             elif "generate" in dir(self.rail_generator):
@@ -378,7 +388,13 @@ class RailEnv(Environment):
             if optionals and 'agents_hints' in optionals:
                 agents_hints = optionals['agents_hints']
 
-            schedule = self.schedule_generator(self.rail, self.number_of_agents, agents_hints, self.num_resets,
+            # Here is called the generator function of the schedule generator depending on the type of generation chosen
+
+            print('I m generating the schedule:')
+            print('==============================================')
+            
+            # Custom schedule generator arguments (rail, num_agents, hints, station_target, station_to_traverse, timetable, num_resets, np_randomState)
+            schedule = self.schedule_generator(self.rail, self.number_of_agents, agents_hints, self.num_resets, 
                                                self.np_random)
             self.agents = EnvAgent.from_schedule(schedule)
 
@@ -524,6 +540,8 @@ class RailEnv(Environment):
 
         if not self.close_following:
             for i_agent, agent in enumerate(self.agents):
+
+                print(i_agent)
                 # Reset the step rewards
                 self.rewards_dict[i_agent] = 0
 
@@ -595,6 +613,7 @@ class RailEnv(Environment):
         - malfunction
         - action handling if at the beginning of cell
         - movement
+        - rewards if the station order is respected
 
         Parameters
         ----------
@@ -740,6 +759,8 @@ class RailEnv(Environment):
                 RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
 
             if is_action_starting:  # agent is trying to start
+                print('##########################################')
+                print('Initial position', agent.initial_position)
                 self.motionCheck.addAgent(i_agent, None, agent.initial_position)
             else:  # agent wants to remain unstarted
                 self.motionCheck.addAgent(i_agent, None, None)
@@ -892,6 +913,12 @@ class RailEnv(Environment):
                 self.active_agents.remove(i_agent)
                 agent.moving = False
                 self._remove_agent_from_scene(agent)
+
+            # has the agent passed from the schedulated intermediate stations?
+            rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+            if self.check_intermediate_station_passage(optionals['agents_hints'], i_agent):
+                self.rewards_dict[i_agent] += self.order_rewards  #reward for the right order
             else:
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
         else:
@@ -991,6 +1018,7 @@ class RailEnv(Environment):
         ''' Record the positions and orientations of all agents in memory, in the cur_episode
         '''
         list_agents_state = []
+
         for i_agent in range(self.get_num_agents()):
             agent = self.agents[i_agent]
             # the int cast is to avoid numpy types which may cause problems with msgpack
@@ -1007,7 +1035,10 @@ class RailEnv(Environment):
                     int(agent.position in self.motionCheck.svDeadlocked)
                     ])
 
+            #print('AGENT POSITIONS:', list_agents_state)  DEBUG
+
         self.cur_episode.append(list_agents_state)
+        #print('AGENT POSITIONS:', self.cur_episode)
         self.list_actions.append(dActions)
 
     def cell_free(self, position: IntVector2D) -> bool:
@@ -1121,3 +1152,18 @@ class RailEnv(Environment):
     def save(self, filename):
         print("deprecated call to env.save() - pls call RailEnvPersister.save()")
         persistence.RailEnvPersister.save(self, filename)
+
+    # This function has to check if the intermediate stations are passed in the right order
+    def check_intermediate_station_passage(self, agents_hints, agent):
+
+        # This variable has the position of all the agents for each time-stamp
+        # its a list of lists (each time-stamp) of lists (each agent), each agent list contein the position (x,y) and the direction (L N R S)
+        position = self.cur_episode
+        num_agents = len(self.agents)
+        # Timetable is a list of lists (agents) with two arrays, once for the stations and once for the times
+        timetable = agents_hints['timetable']
+        #print('timetable for the i agent agent:', timetable[agent][0][0][0])
+        for timestamps in range(len(position)):
+            for agents in range(num_agents):
+                if (position[timestamps][agents][0] == timetable[agents][0][0][0] and position[timestamps][agents][1] == timetable[agents][0][0][1]):
+                    return True
