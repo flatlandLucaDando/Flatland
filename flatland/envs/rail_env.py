@@ -917,7 +917,7 @@ class RailEnv(Environment):
             # has the agent passed from the schedulated intermediate stations?
             rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
-            if self.check_intermediate_station_passage(optionals['agents_hints'], i_agent):
+            if self.check_intermediate_station_passage(optionals['agents_hints']):
                 self.rewards_dict[i_agent] += self.order_rewards  #reward for the right order
             else:
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
@@ -1154,7 +1154,7 @@ class RailEnv(Environment):
         persistence.RailEnvPersister.save(self, filename)
 
     # This function has to check if the intermediate stations are passed in the right order
-    def check_intermediate_station_passage(self, agents_hints, agent):
+    def check_intermediate_station_passage(self, agents_hints):
 
         # This variable has the position of all the agents for each time-stamp
         # its a list of lists (each time-stamp) of lists (each agent), each agent list contein the position (x,y) and the direction (L N R S)
@@ -1162,8 +1162,29 @@ class RailEnv(Environment):
         num_agents = len(self.agents)
         # Timetable is a list of lists (agents) with two arrays, once for the stations and once for the times
         timetable = agents_hints['timetable']
+        # contatore per non 
+
+        #Variable to check the order of the passage in the intermediate stations for each train
+        station_order = [0] * num_agents
         #print('timetable for the i agent agent:', timetable[agent][0][0][0])
         for timestamps in range(len(position)):
-            for agents in range(num_agents):
-                if (position[timestamps][agents][0] == timetable[agents][0][0][0] and position[timestamps][agents][1] == timetable[agents][0][0][1]):
-                    return True
+            for agents in range(num_agents): 
+                # Checking if the intermediate station are reached or not
+                # I need to compare two tuple, so i have to convert the position (list) to a tuple
+
+                if(tuple(position[timestamps][agents][0:2]) == timetable[agents][0][station_order[agents]]):
+                    station_order[agents] += 1
+                    #print(station_order[agents], 'questo è la stazione numero tot raggiunta dal treno numero', agents)
+
+                    # Check if the train i have finished his passage from the stations or not
+                    if (station_order[agents] == (len(timetable[agents][0]))):
+
+                        #print('Positione del treno',agents,'al time stamp',timestamps,'è:',position[timestamps][agents][0:2])
+
+                        # Resetting the station order of the agent i
+                        station_order[agents] = 0
+                        return True
+                    else:
+                        return False
+            else: 
+                return False
