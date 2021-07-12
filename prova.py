@@ -67,9 +67,21 @@ station_position = [station_a, station_b, station_c, stationo_d, station_e]
 # TO DO, eliminate the target stations and use the timetable to add them in the schedule
 target_stations = [station_c, station_a, station_b, station_e, stationo_d]
 
-timetable = [[(station_a, station_b, station_c), (4,10, 20)], [(station_b, station_a),(0, 5)], 
-             [(station_c, station_b), (12, 15)], [(stationo_d, station_e), (20, 25)], 
+
+# GESTISCI ORARI IN MODO CHE ABBIANO SENSO CON L'ambiente
+# TODO: controlli sulla fattibilità della timetable 
+
+# Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
+# each train has to pass in the station
+# Each row represent a different train
+
+timetable = [[(station_a, station_b, station_c), (4 ,10, 20)], 
+			 [(station_b, station_a),(0, 5)], 
+             [(station_c, station_b), (12, 15)], 
+             [(stationo_d, station_e), (20, 25)], 
              [(station_e, stationo_d), (14, 20)]]
+
+control_timetable()
 
 # Generating the railway topology, with stations
 # Arguments of the generator (specs of the railway, num of agents, position of stations, target stations, timetable)
@@ -86,10 +98,22 @@ rail_custom = rail_custom_generator(specs, number_of_trains, station_position, t
 # distribution of speed profiles
 
 # Different agent types (trains) with different speeds.
-speed_ration_map = {1.: 0.25,  # Fast passenger train
-					1. / 2.: 0.25,  # Fast freight train
-					1. / 3.: 0.25,  # Slow commuter train
-					1. / 4.: 0.25}  # Slow freight train
+
+# TODO: Definire velocità diverse in base alle tratte 
+# Velocità variabili in base all'orario...
+
+speed_ration_map_trains = [1.      ,  # High velocity trains
+						   1. / 3. ,  # Intercity trains
+					       1. / 4. ]  # Regional trains
+
+speed_ration_map_lines = [1.       ,  # High velocity lines
+						  1. / 2.  ]  # Regional lines
+
+line_a_b = [[21, 0],
+			[20, 36]]
+
+line_b_e = [[21, 36],
+			[15, 51]]
 
 seed = 2
 
@@ -373,3 +397,7 @@ for trials in range(1, n_trials + 1):
 # uncomment to keep the renderer open
 input("Press Enter to continue...")
 """
+
+def control_timetable(timetable, railway, velocities):
+	flag = 'this flag will tell the user if the timetable inserted is realistic or not (infeaseble)'
+	return(flag)
