@@ -145,13 +145,15 @@ class RailEnv(Environment):
     """
     alpha = 1.0
     beta = 1.0
-    theta = 0.5
+    theta = 0.5  # variable for the order of stations
+    gamma = 0.1  # variable for the time respected
     # Epsilon to avoid rounding errors
     epsilon = 0.01
-    invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
+    invalid_action_penalty = -1  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
     step_penalty = -1 * alpha
-    global_reward = 1 * beta
-    order_rewards = 1 * theta
+    global_reward = 2 * beta
+    order_rewards = 1 * theta     # reward if a train respect his order of station in which it has to pass
+    time_reward = 1 * gamma       # reward if a train respect the time at which has to pass to a station
     stop_penalty = 0  # penalty for stopping a moving agent
     start_penalty = 0  # penalty for starting a stopped agent
 
@@ -521,7 +523,7 @@ class RailEnv(Environment):
                 self.rewards_dict[i_agent] = self.global_reward
                 info_dict["action_required"][i_agent] = False
                 info_dict["malfunction"][i_agent] = 0
-                info_dict["speed"][i_agent] = 0
+                info_dict["speed"][i_agent] = 0      
                 info_dict["status"][i_agent] = agent.status
 
             return self._get_observations(), self.rewards_dict, self.dones, info_dict
@@ -557,7 +559,7 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = agent.speed_data['speed']
+                info_dict["speed"][i_agent] = self.check_speed(1,2)   # TODO discorso della velocità fatto
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -588,7 +590,7 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = agent.speed_data['speed']
+                info_dict["speed"][i_agent] = self.check_speed(1,2)  # TODO discorso della velocità fatto
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -614,6 +616,7 @@ class RailEnv(Environment):
         - action handling if at the beginning of cell
         - movement
         - rewards if the station order is respected
+        - rewards if the passage time at the stations are respect
 
         Parameters
         ----------
@@ -713,7 +716,7 @@ class RailEnv(Environment):
         # If the new position fraction is >= 1, reset to 0, and perform the stored
         #   transition_action_on_cellexit if the cell is free.
         if agent.moving:
-            agent.speed_data['position_fraction'] += agent.speed_data['speed']
+            agent.speed_data['position_fraction'] += agent.speed_data['speed']  # TODO le cose della velocità
             if agent.speed_data['position_fraction'] > 1.0 or fast_isclose(agent.speed_data['position_fraction'], 1.0,
                                                                            rtol=1e-03):
                 # Perform stored action to transition to the next cell as soon as cell is free
@@ -1188,3 +1191,28 @@ class RailEnv(Environment):
                         return False
             else: 
                 return False
+
+    def check_passage_time(self, agents_hints):
+        return(0)
+
+        # TODO Check the velocity depending on the timetable...
+        # QUA è da aggiustare
+    def check_speed(self, lines_velocities, train_type):
+
+        for i_agent, agent in enumerate(self.agents):
+
+            agent = self.agents[i_agent]
+
+            current_position = agent.position
+
+            # check the train position
+
+            print('Position di', i_agent,'è questo:', current_position) 
+            print('===========================================================================')
+            
+            """
+            if ((20,0) < agent.position < (21,36)):
+                print('The current position of the agent', i_agent, 'is:', agent.position)
+            """
+
+
