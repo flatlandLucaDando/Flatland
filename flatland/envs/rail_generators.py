@@ -207,7 +207,8 @@ def complex_rail_generator(nr_start_goal=1,
 
     return generator
 
-def rail_custom_generator(rail_spec, num_of_agents: int, train_stations_position: list, target_stations: list, timetable: list):
+# Number of agents are given by timetables (the num of the rows), target stations are also given by timetable 
+def rail_custom_generator(rail_spec, train_stations_position: list, timetable: list):
 
     """
     Utility to convert a rail given by manual specification as a map of tuples
@@ -237,8 +238,18 @@ def rail_custom_generator(rail_spec, num_of_agents: int, train_stations_position
     def custom_generator(width: int, height: int, num_agents: int, num_resets: int = 0,
                   np_random: RandomState = None) -> RailGenerator:
 
+        # All the cities are oriented in the same way in my model
         city_orientations = 1
-        
+
+        # Taking the number of agents from timetable
+        num_of_agents = len(timetable)
+
+        # Taking the target stations from timetable
+        target_stations = []
+
+        for agent in range(num_agents):
+            target_stations.append(timetable[agent][0][-1])
+      
         rail_env_transitions = RailEnvTransitions()
 
         height = len(rail_spec)
@@ -263,7 +274,7 @@ def rail_custom_generator(rail_spec, num_of_agents: int, train_stations_position
             'train_stations': train_stations_position,
             'city_orientations': city_orientations,
             'targets' : target_stations,
-            'timetable' : timetable
+            'timetable' : timetable  # TODO explain why ? 
         }}
 
     return custom_generator
