@@ -19,7 +19,7 @@ from flatland.utils.rendertools import RenderTool
 from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 
-from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, complex_schedule_generator
+from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, complex_schedule_generator, control_timetable
 
 # Example generate a rail given a manual specification,
 # a map of tuples (cell_type, rotation)
@@ -61,10 +61,8 @@ stationo_d = (1, 35)
 station_e = (15, 51)
 
 # station_position = [[22, 0], [22, 20], [8, 12], [1, 32], [16, 49]]   #debug
-# TO DO, eliminate the start stations and use the timetable to add them in the schedule
 station_position = [station_a, station_b, station_c, stationo_d, station_e]
 
-# TO DO, eliminate the target stations and use the timetable to add them in the schedule
 target_stations = [station_c, station_a, station_b, station_e, stationo_d]
 
 
@@ -81,12 +79,16 @@ timetable = [[(station_a, station_b, station_c), (4 ,10, 20)],
              [(stationo_d, station_e), (20, 25)], 
              [(station_e, stationo_d), (14, 20)]]
 
-control_timetable()
+
+# Check if the timetable is feaseble or not, the function is in schedule_generators
+# A timetable is feaseble if the difference of times between two stations is positive and let the trains to reach the successive station
+# if two stations are very distant from each other the difference of times can't be very small
+control_timetable(timetable,timetable,timetable)
 
 # Generating the railway topology, with stations
 # Arguments of the generator (specs of the railway, num of agents, position of stations, target stations, timetable)
 
-rail_custom = rail_custom_generator(specs, number_of_trains, station_position, target_stations, timetable)
+rail_custom = rail_custom_generator(specs, station_position, timetable)
 
 
 ################################################################# 
@@ -109,16 +111,27 @@ speed_ration_map_trains = [1.      ,  # High velocity trains
 speed_ration_map_lines = [1.       ,  # High velocity lines
 						  1. / 2.  ]  # Regional lines
 
-line_a_b = [[21, 0],
-			[20, 36]]
+# Lines are represented by a rectangle between two stations
+line_a_b = [[20, 0],
+			[21, 36]] # high velocity
 
-line_b_e = [[21, 36],
-			[15, 51]]
+line_b_e = [[15, 36],
+			[21, 51]] # high velocity
+
+line_a_c = [[8, 0],
+			[21, 12]] # regional
+
+line_c_d = [[1, 12],
+			[8, 35]] # regional
+
+line_d_e = [[1, 35],
+			[15, 51]] # regional
+
 
 seed = 2
 
 # We can now initiate the schedule generator with the given speed profiles
-schedule_generator_custom = custom_schedule_generator(speed_ration_map, seed)
+schedule_generator_custom = custom_schedule_generator()
 
 TreeObservation = TreeObsForRailEnv(max_depth=5, predictor=ShortestPathPredictorForRailEnv())
 
@@ -155,8 +168,8 @@ class RandomAgent:
 		:return: returns an action
 		"""
 
-		return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT,
-								 RailEnvActions.STOP_MOVING])
+		return(RailEnvActions.MOVE_FORWARD)
+		#return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
 
 	def step(self, memories):
 		"""
@@ -197,7 +210,7 @@ print("============================")
 
 for agent_idx, agent in enumerate(env.agents):
 	print("Agent {} status is: {} with its current position being {}".format(agent_idx, str(agent.status),
-							                               str(agent.position)))
+																			 str(agent.position)))
 
 # The agent needs to take any action [1,2,3] except do_nothing or stop to enter the level
 # If the starting cell is free they will enter the level
@@ -292,31 +305,42 @@ score = 0
 # Run episode
 frame_step = 0
 
+# How many episodes
+n_trials = 10
+
 os.makedirs("tmp/frames", exist_ok=True)
 
-for step in range(500):
-	# Chose an action for each agent in the environment
-	for a in range(env.get_num_agents()):
-		action = controller.act(observations[a])
-		action_dict.update({a: action})
+for trials in range(1, n_trials + 1):
 
-	# Environment step which returns the observations for all agents, their corresponding
-	# reward and whether their are done
+	# Reset environment and get initial observations for all agents
+	obs, info = env.reset()
+	for idx in range(env.get_num_agents()):
+		tmp_agent = env.agents[idx]
+		tmp_agent.speed_data["speed"] = 1 / (idx + 1)
+	env_renderer.reset()
+	# Here you can also further enhance the provided observation by means of normalization
+	# See training navigation example in the baseline repository
 
-	next_obs, all_rewards, done, _ = env.step(action_dict)
+	score = 0
+	# Run episode
+	for step in range(500):
+		# Chose an action for each agent in the environment
+		for a in range(env.get_num_agents()):
+			action = controller.act(obs[a])
+			action_dict.update({a: action})
+		# Environment step which returns the observations for all agents, their corresponding
+		# reward and whether their are done
+		next_obs, all_rewards, done, _ = env.step(action_dict)
+		env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
 
-	env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
-	env_renderer.gl.save_image('tmp/frames/flatland_frame_{:04d}.png'.format(step))
-	frame_step += 1
-	# Update replay buffer and train agent
-	for a in range(env.get_num_agents()):
-		controller.step((observations[a], action_dict[a], all_rewards[a], next_obs[a], done[a]))
-		score += all_rewards[a]
-
-	observations = next_obs.copy()
-	if done['__all__']:
-		break
-	print('Episode: Steps {}\t Score = {}'.format(step, score))
+		# Update replay buffer and train agent
+		for a in range(env.get_num_agents()):
+			controller.step((obs[a], action_dict[a], all_rewards[a], next_obs[a], done[a]))
+			score += all_rewards[a]
+		obs = next_obs.copy()
+		if done['__all__']:
+			break
+	print('Episode Nr. {}\t Score = {}'.format(trials, score))
 
 
 """
@@ -398,6 +422,3 @@ for trials in range(1, n_trials + 1):
 input("Press Enter to continue...")
 """
 
-def control_timetable(timetable, railway, velocities):
-	flag = 'this flag will tell the user if the timetable inserted is realistic or not (infeaseble)'
-	return(flag)
