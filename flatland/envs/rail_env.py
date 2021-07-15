@@ -559,7 +559,7 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = self.check_speed(1,2)   # TODO discorso della velocità fatto
+                info_dict["speed"][i_agent] = self.check_speed(1,2)   # TODO check what velocity is needed
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
