@@ -70,14 +70,14 @@ target_stations = [station_c, station_a, station_b, station_e, stationo_d]
 # TODO: controlli sulla fattibilità della timetable 
 
 # Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
-# each train has to pass in the station
+# each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
 # Each row represent a different train
 
-timetable = [[(station_a, station_b, station_c), (4 ,10, 20)], 
-			 [(station_b, station_a),(0, 5)], 
-             [(station_c, station_b), (12, 15)], 
-             [(stationo_d, station_e), (20, 25)], 
-             [(station_e, stationo_d), (14, 20)]]
+timetable = [[(station_a, station_b, station_c), (4 ,10, 20), (1.)],   		 # agent 0   high velocity
+			 [(station_b, station_a),(0, 5), (1. / 2.)],                     # agent 1   Intercity
+             [(station_c, station_b), (12, 15), (1. / 2.)],                  # agent 2   Intercity
+             [(stationo_d, station_e), (20, 25), (1. / 4.)],                 # agent 3   Regional
+             [(station_e, stationo_d), (14, 20), (1. / 4.)]]                 # agent 4   Regional
 
 
 # Check if the timetable is feaseble or not, the function is in schedule_generators
@@ -85,28 +85,9 @@ timetable = [[(station_a, station_b, station_c), (4 ,10, 20)],
 # if two stations are very distant from each other the difference of times can't be very small
 control_timetable(timetable,timetable,timetable)
 
-# Generating the railway topology, with stations
-# Arguments of the generator (specs of the railway, num of agents, position of stations, target stations, timetable)
+# Different velocities in different lines.
 
-rail_custom = rail_custom_generator(specs, station_position, timetable)
-
-
-################################################################# 
-############ This is for the different velocities ###############
-#################################################################
-
-# The schedule generator can make very basic schedules with a start point, end point and a speed profile for each agent.
-# The speed profiles can be adjusted directly as well as shown later on. We start by introducing a statistical
-# distribution of speed profiles
-
-# Different agent types (trains) with different speeds.
-
-# TODO: Definire velocità diverse in base alle tratte 
-# Velocità variabili in base all'orario...
-
-speed_ration_map_trains = [1.      ,  # High velocity trains
-						   1. / 3. ,  # Intercity trains
-					       1. / 4. ]  # Regional trains
+# TODO:  Velocità variabili in base all'orario...e al percorso da percorrere
 
 speed_ration_map_lines = [1.       ,  # High velocity lines
 						  1. / 2.  ]  # Regional lines
@@ -129,6 +110,11 @@ line_d_e = [[1, 35],
 
 
 seed = 2
+
+# Generating the railway topology, with stations
+# Arguments of the generator (specs of the railway, position of stations, timetable)
+
+rail_custom = rail_custom_generator(specs, station_position, timetable)
 
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator()
