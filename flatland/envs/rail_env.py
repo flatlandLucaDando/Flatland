@@ -392,9 +392,6 @@ class RailEnv(Environment):
 
             # Here is called the generator function of the schedule generator depending on the type of generation chosen
 
-            print('I m generating the schedule:')
-            print('==============================================')
-            
             # Custom schedule generator arguments (rail, num_agents, hints, station_target, station_to_traverse, timetable, num_resets, np_randomState)
             schedule = self.schedule_generator(self.rail, self.number_of_agents, agents_hints, self.num_resets, 
                                                self.np_random)
@@ -510,6 +507,8 @@ class RailEnv(Environment):
         """
         self._elapsed_steps += 1
 
+        print('Elapsed time is', self._elapsed_steps, 'minutes')
+
         # If we're done, set reward and info_dict and step() is done.
         if self.dones["__all__"]:
             self.rewards_dict = {}
@@ -557,9 +556,15 @@ class RailEnv(Environment):
                 have_all_agents_ended &= (agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED])
 
                 # Build info dict
+                rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = self.check_speed(1,2)   # TODO check what velocity is needed
+                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO vary velocities depending on the timetable to respect
+                info_dict["speed"][i_agent] = velocities[i_agent]
+
+                #print('The agent',i_agent,' has velocity',info_dict["speed"][i_agent]) # DEBUG
+
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -588,9 +593,15 @@ class RailEnv(Environment):
                 have_all_agents_ended &= (agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED])
 
                 # Build info dict
+                rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = self.check_speed(1,2)  # TODO discorso della velocità fatto
+                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO vary velocities depending on the timetable to respect
+                info_dict["speed"][i_agent] = velocities[i_agent]
+
+                #print('The agent',i_agent,' has velocity',info_dict["speed"][i_agent]) # DEBUG
+
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -624,12 +635,19 @@ class RailEnv(Environment):
         action_dict_ : Dict[int,RailEnvActions]
 
         """
+        # Build info dict
+        rail, optionals = self.rail_generator(
+            self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
         agent = self.agents[i_agent]
+
+        starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+
         if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
             return
 
-        # agent gets active by a MOVE_* action and if c
-        if agent.status == RailAgentStatus.READY_TO_DEPART:
+        # agent gets active by a MOVE_* action and if c, and check if the starting time is arrived
+        if (agent.status == RailAgentStatus.READY_TO_DEPART):    #or (self._elapsed_steps >= starting_time):  TODO, capisci pk nn funziona
             initial_cell_free = self.cell_free(agent.initial_position)
             is_action_starting = action in [
                 RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
@@ -752,18 +770,25 @@ class RailEnv(Environment):
     def _step_agent_cf(self, i_agent, action: Optional[RailEnvActions] = None):
         """ "close following" version of step_agent.
         """
+
+        rail, optionals = self.rail_generator(
+            self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
         agent = self.agents[i_agent]
+
+        starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+
         if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
             return
 
-        # agent gets active by a MOVE_* action and if c
-        if agent.status == RailAgentStatus.READY_TO_DEPART:
+        # agent gets active by a MOVE_* action and if c, and check if the starting time is arrived
+        if (agent.status == RailAgentStatus.READY_TO_DEPART):     #or (self._elapsed_steps >= starting_time): TODO capisci pk nn funziona
             is_action_starting = action in [
                 RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
 
             if is_action_starting:  # agent is trying to start
-                print('##########################################')
-                print('Initial position', agent.initial_position)
+                #print('##########################################')
+                #print('Initial position', agent.initial_position)
                 self.motionCheck.addAgent(i_agent, None, agent.initial_position)
             else:  # agent wants to remain unstarted
                 self.motionCheck.addAgent(i_agent, None, None)
@@ -1196,23 +1221,44 @@ class RailEnv(Environment):
         return(0)
 
         # TODO Check the velocity depending on the timetable...
-        # QUA è da aggiustare
-    def check_speed(self, lines_velocities, train_type):
+        # TODO PASS BETTER THE THINGS TO THE FUNCTION
+    def check_speed(self, agents_hints, lines_velocities, train_type):
 
+        # Velocity depend on the train type and on the line
+        velocity = lines_velocities
+
+        train_velocities = [0]*agents_hints['num_agents']
+
+        # Check for all the agents
         for i_agent, agent in enumerate(self.agents):
 
+            # the i_agent
             agent = self.agents[i_agent]
 
-            current_position = agent.position
+            # Check if the agent is in the environment or not
+            if agent.position != None:
 
-            # check the train position
+                # If the agent is in the line i the max velocity is x
 
-            print('Position di', i_agent,'è questo:', current_position) 
-            print('===========================================================================')
-            
-            """
-            if ((20,0) < agent.position < (21,36)):
-                print('The current position of the agent', i_agent, 'is:', agent.position)
-            """
+                # High velocity line case
+                if (
+                        (20 <= agent.position[0] <= 21) and (0 <= agent.position[1] <= 36)) or \
+                        ((15 <= agent.position[0] <= 21) and (36 <= agent.position[1] <= 51)
+                    ):  
+
+                    train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])
+                
+                # Regional line case
+                if (
+                        (8 <= agent.position[0] <= 21) and (0 <= agent.position[1] <= 12)) or \
+                        ((1 <= agent.position[0] <= 8) and (12 <= agent.position[1] <= 35)) or \
+                        ((1 <= agent.position[0] <= 15) and (35 <= agent.position[1] <= 51)
+                    ):
+
+                    train_velocities[i_agent] = min(velocity[1], agents_hints['timetable'][i_agent][2])
+
+        return train_velocities
+
+
 
 
