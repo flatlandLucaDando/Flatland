@@ -361,11 +361,6 @@ class RailEnv(Environment):
 
             if "__call__" in dir(self.rail_generator):
 
-                print('I m generating the railway:')
-                print('=============================')
-
-                print(self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
-
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
             elif "generate" in dir(self.rail_generator):
@@ -423,6 +418,7 @@ class RailEnv(Environment):
 
         self.num_resets += 1
         self._elapsed_steps = 0
+        self.run_once = [0]*(self.number_of_agents)   # Flag to check when a train has started   
 
         # TODO perhaps dones should be part of each agent.
         self.dones = dict.fromkeys(list(range(self.get_num_agents())) + ["__all__"], False)
@@ -553,16 +549,18 @@ class RailEnv(Environment):
 
                 agent = self.agents[i_agent]
 
-
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
-                if self._elapsed_steps >= starting_time:
-                    agent.status = RailAgentStatus.ACTIVE
-                    if run_once == 0:
-                        self._set_agent_to_initial_position(agent, agent.initial_position)
-                        run_once = 1
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
 
+                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0):
+                    agent.status = RailAgentStatus.ACTIVE
+                    self._set_agent_to_initial_position(agent, agent.initial_position)
+                    self.run_once[i_agent] = 1
 
                 # Reset the step rewards
                 self.rewards_dict[i_agent] = 0
@@ -579,7 +577,7 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO vary velocities depending on the timetable to respect
+                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO variare velocità in base alla stazione da raggiungere
                 info_dict["speed"][i_agent] = velocities[i_agent]
                 info_dict["status"][i_agent] = agent.status
 
@@ -590,22 +588,24 @@ class RailEnv(Environment):
         else:
             for i_agent, agent in enumerate(self.agents):
 
-                run_once = 0
-
                 # Build info dict
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
 
                 agent = self.agents[i_agent]
+
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
-                if self._elapsed_steps >= starting_time:
-                    #print('The agent', i_agent, ' is starting')
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
+                
+                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0):
                     agent.status = RailAgentStatus.ACTIVE
-                    if run_once == 0:
-                        self._set_agent_to_initial_position(agent, agent.initial_position)
-                        run_once = 1
+                    self._set_agent_to_initial_position(agent, agent.initial_position)
+                    self.run_once[i_agent] = 1
 
                 # Reset the step rewards
                 self.rewards_dict[i_agent] = 0
@@ -629,15 +629,20 @@ class RailEnv(Environment):
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
 
                 agent = self.agents[i_agent]
+
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
-                if self._elapsed_steps >= starting_time:
-                    agent.status = RailAgentStatus.ACTIVE
-                    if run_once == 0:
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
+                
+                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
+                if (self._elapsed_steps >= starting_time):
+                    if (self.run_once[i_agent] == 0):
+                        agent.status = RailAgentStatus.ACTIVE
                         self._set_agent_to_initial_position(agent, agent.initial_position)
-                        run_once = 1
-
+                        self.run_once[i_agent] = 1
                     self._step_agent2_cf(i_agent)
 
                 # manage the boolean flag to check if all agents are indeed done (or done_removed)
@@ -1140,12 +1145,12 @@ class RailEnv(Environment):
         -------
         Tuple[Grid4TransitionsEnum,Tuple[int,int]]
 
-        """
 
+
+        """
+        transition_valid = None
         possible_transitions = self.rail.get_transitions(*agent.position, agent.direction)
         num_transitions = fast_count_nonzero(possible_transitions)
-
-        transition_valid = True
 
         new_direction = agent.direction
         if action == RailEnvActions.MOVE_LEFT:
