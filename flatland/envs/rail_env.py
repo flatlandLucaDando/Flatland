@@ -29,6 +29,8 @@ from flatland.envs import agent_chains as ac
 from flatland.envs.observations import GlobalObsForRailEnv
 from gym.utils import seeding
 
+from structures import speed_ration_map_lines, line_a_b, line_b_e, line_a_c, line_c_d, line_d_e
+
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
 # from flatland.envs.observations import GlobalObsForRailEnv
@@ -556,8 +558,8 @@ class RailEnv(Environment):
                 # for the agent, because when it reaches its target has to change
                 # the initial position is done only one time, then the position change depending on the action of the agent
 
-                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
-                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0):
+                # 
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
                     agent.status = RailAgentStatus.ACTIVE
                     self._set_agent_to_initial_position(agent, agent.initial_position)
                     self.run_once[i_agent] = 1
@@ -577,7 +579,11 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO variare velocità in base alla stazione da raggiungere
+                # Check the velocities the agents must have depending on the line they are on the type of train and on the time needed to reach in time 
+                # the next station
+                velocities = self.check_speed(optionals['agents_hints'], speed_ration_map_lines, 1)   # TODO variare velocità in base alla stazione da raggiungere
+
+                agent.speed_data['speed'] = velocities[i_agent]
                 info_dict["speed"][i_agent] = velocities[i_agent]
                 info_dict["status"][i_agent] = agent.status
 
@@ -602,7 +608,7 @@ class RailEnv(Environment):
                 # the initial position is done only one time, then the position change depending on the action of the agent
                 
                 # TODO mancano controlli sul fatto che la posizione iniziale sia libera
-                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0):
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
                     agent.status = RailAgentStatus.ACTIVE
                     self._set_agent_to_initial_position(agent, agent.initial_position)
                     self.run_once[i_agent] = 1
@@ -639,7 +645,7 @@ class RailEnv(Environment):
                 
                 # TODO mancano controlli sul fatto che la posizione iniziale sia libera
                 if (self._elapsed_steps >= starting_time):
-                    if (self.run_once[i_agent] == 0):
+                    if (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
                         agent.status = RailAgentStatus.ACTIVE
                         self._set_agent_to_initial_position(agent, agent.initial_position)
                         self.run_once[i_agent] = 1
@@ -651,13 +657,12 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                velocities = self.check_speed(optionals['agents_hints'], [1., (1./2.)], 1)   # TODO vary velocities depending on the timetable to respect
+                # Check the velocities the agents must have depending on the line they are on the type of train and on the time needed to reach in time 
+                # the next station
+                velocities = self.check_speed(optionals['agents_hints'], speed_ration_map_lines, 1)   # TODO variare velocità in base alla stazione da raggiungere
+
+                agent.speed_data['speed'] = velocities[i_agent]
                 info_dict["speed"][i_agent] = velocities[i_agent]
-
-                #print(info_dict["speed"][i_agent])
-
-                #print('The agent',i_agent,' has velocity',info_dict["speed"][i_agent]) # DEBUG
-
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -830,11 +835,9 @@ class RailEnv(Environment):
         # agent gets active by a MOVE_* action and if c, and check if the starting time is arrived
         if (agent.status == RailAgentStatus.READY_TO_DEPART):   
             is_action_starting = action in [
-                RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
-
-            if is_action_starting:  # agent is trying to start
-                #print('##########################################')
-                #print('Initial position', agent.initial_position)
+                RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD] 
+            if is_action_starting \
+            and self.cell_free(agent.initial_position):  # agent is trying to start
                 self.motionCheck.addAgent(i_agent, None, agent.initial_position)
             else:  # agent wants to remain unstarted
                 self.motionCheck.addAgent(i_agent, None, None)
@@ -1269,13 +1272,13 @@ class RailEnv(Environment):
         return(0)
 
         # TODO Check the velocity depending on the timetable...
-        # TODO PASS BETTER THE THINGS TO THE FUNCTION
     def check_speed(self, agents_hints, lines_velocities, train_type):
 
-        # Velocity depend on the train type and on the line
+        # Velocity depending on the line
         velocity = lines_velocities
 
-        train_velocities = [0]*agents_hints['num_agents']
+        # Velocity depending on the train type and on the line (Take the minimum between the two possible velocities)
+        train_velocities = [0]*self.number_of_agents
 
         # Check for all the agents
         for i_agent, agent in enumerate(self.agents):
@@ -1290,17 +1293,17 @@ class RailEnv(Environment):
 
                 # High velocity line case
                 if (
-                        (20 <= agent.position[0] <= 21) and (0 <= agent.position[1] <= 36)) or \
-                        ((15 <= agent.position[0] <= 21) and (36 <= agent.position[1] <= 51)
+                        (line_a_b[0][0] <= agent.position[0] <= line_a_b[1][0]) and (line_a_b[0][1] <= agent.position[1] <= line_a_b[1][1])) or \
+                        ((line_b_e[0][0] <= agent.position[0] <= line_b_e[1][0]) and (line_b_e[0][1] <= agent.position[1] <= line_b_e[1][1])
                     ):  
 
                     train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])
                 
                 # Regional line case
-                if (
-                        (8 <= agent.position[0] <= 21) and (0 <= agent.position[1] <= 12)) or \
-                        ((1 <= agent.position[0] <= 8) and (12 <= agent.position[1] <= 35)) or \
-                        ((1 <= agent.position[0] <= 15) and (35 <= agent.position[1] <= 51)
+                elif (
+                        ((line_a_c[0][0] <= agent.position[0] <= line_a_c[1][0]) and (line_a_c[0][1] <= agent.position[1] <= line_a_c[1][1])) or \
+                        ((line_c_d[0][0] <= agent.position[0] <= line_c_d[1][0]) and (line_c_d[0][1] <= agent.position[1] <= line_c_d[1][1])) or \
+                        ((line_d_e[0][0] <= agent.position[0] <= line_d_e[1][0]) and (line_d_e[0][1] <= agent.position[1] <= line_d_e[1][1]))
                     ):
 
                     train_velocities[i_agent] = min(velocity[1], agents_hints['timetable'][i_agent][2])
