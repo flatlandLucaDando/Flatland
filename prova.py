@@ -21,7 +21,8 @@ from flatland.envs.schedule_generators import random_schedule_generator, custom_
 # Importing the different structures needed
 from structures import railway_example_1, stations, timetable_example_1
 
-
+widht_example_1 = 40
+height_example_1 = 30
 
 # The specs for the custom railway generation are taken from structures.py file
 specs = railway_example_1
@@ -30,7 +31,7 @@ specs = railway_example_1
 station_a = stations[0]
 station_b = stations[1]
 station_c = stations[2]
-stationo_d = stations[3]
+station_d = stations[3]
 station_e = stations[4]
 
 # Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
@@ -40,10 +41,12 @@ station_e = stations[4]
 # Importing the timetable
 timetable = timetable_example_1
 
+# Number of agents is the rows of the timetable
+num_of_agents = len(timetable)
+
 # Check if the timetable is feaseble or not, the function is in schedule_generators
 # A timetable is feaseble if the difference of times between two stations is positive and let the trains to reach the successive station
 # if two stations are very distant from each other the difference of times can't be very small
-control_timetable(timetable,timetable,timetable)
 
 seed = 2
 
@@ -52,20 +55,25 @@ seed = 2
 
 rail_custom = rail_custom_generator(specs, stations, timetable)
 
+transition_map_example_1, agent_hints = rail_custom(widht_example_1, height_example_1, num_of_agents)
+
+control_timetable(timetable,transition_map_example_1)
+
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator()
 
 TreeObservation = GlobalObsForRailEnv()
 
-env = RailEnv(  width=40,
-				height=30,
+env = RailEnv(  width= widht_example_1,
+				height= height_example_1,
 				rail_generator = rail_custom,
 				schedule_generator=schedule_generator_custom,
-				number_of_agents=5,
+				number_of_agents= num_of_agents,
 				obs_builder_object=TreeObservation,
 				remove_agents_at_target=True,
 				record_steps=True
 				)
+
 
 env.reset()
 
