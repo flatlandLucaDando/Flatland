@@ -232,7 +232,7 @@ def rail_custom_generator(rail_spec, train_stations_position: list, timetable: l
     -------------
         Train station poition: to define the position of the station
         Target station: Define the target of the different agents
-        Timetable: timetable contein the intermediate station and the time at which pass across them and the velocities of the trains
+        Timetable: timetable contein the intermediate station and the time at which pass across them
     """
 
     def custom_generator(width: int, height: int, num_agents: int, num_resets: int = 0,
@@ -274,7 +274,7 @@ def rail_custom_generator(rail_spec, train_stations_position: list, timetable: l
             'train_stations': train_stations_position,
             'city_orientations': city_orientations,
             'targets' : target_stations,
-            'timetable' : timetable  # TODO explain why ? 
+            'timetable' : timetable 
         }}
 
     return custom_generator
