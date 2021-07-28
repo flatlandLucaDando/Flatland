@@ -13,7 +13,7 @@
 - Contengono test e tutorial di 'flatland'
 
 # prova.py:
-- Script python che ad ora effettua i primi tre punti (costruisce una ferrovia custom)
+- Script python che implementa uno stude case
 
 # Problema:
 - 1- Fare i tutorial ultima release di Flatland
@@ -22,6 +22,7 @@
 - X- Avere ben presente le specifiche    
 --
 - 4- Estendere Schedule generator in modo che l'utente possa specificare il tempo di generazione degli agenti (default 0).
+- 4.5- Estendere i tipi di velocità min(velocità massima tratta, max velocità treno, lunghezza tratta/(tempo arrivo (timetable) - tempo adesso) >= 0) (attenzione di non fare diviso zero)
 - 5- Estenedere il sistema di conseguenza
 - 6- Estendere schedule generator in modo che l'utente possa specificare le stazioni intermedie
 - 7- Cambiare la reward per favorire il passaggio per stazioni intermedie

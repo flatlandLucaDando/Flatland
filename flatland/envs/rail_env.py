@@ -17,6 +17,7 @@ from flatland.core.grid.grid_utils import IntVector2D
 from flatland.core.transition_map import GridTransitionMap
 from flatland.envs.agent_utils import EnvAgent, RailAgentStatus
 from flatland.envs.distance_map import DistanceMap
+from flatland.envs.schedule_utils import Schedule
 
 # Need to use circular imports for persistence.
 from flatland.envs import malfunction_generators as mal_gen
@@ -27,6 +28,8 @@ from flatland.envs import agent_chains as ac
 
 from flatland.envs.observations import GlobalObsForRailEnv
 from gym.utils import seeding
+
+from structures import speed_ration_map_lines, line_a_b, line_b_e, line_a_c, line_c_d, line_d_e
 
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
@@ -120,6 +123,7 @@ class RailEnv(Environment):
 
     alpha = 1
     beta = 1
+
     Reward function parameters:
 
     - invalid_action_penalty = 0
@@ -143,11 +147,15 @@ class RailEnv(Environment):
     """
     alpha = 1.0
     beta = 1.0
+    theta = 0.5  # variable for the order of stations
+    gamma = 0.1  # variable for the time respected
     # Epsilon to avoid rounding errors
     epsilon = 0.01
-    invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
+    invalid_action_penalty = -1  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
     step_penalty = -1 * alpha
-    global_reward = 1 * beta
+    global_reward = 2 * beta
+    order_rewards = 1 * theta     # reward if a train respect his order of station in which it has to pass
+    time_reward = 1 * gamma       # reward if a train respect the time at which has to pass to a station
     stop_penalty = 0  # penalty for stopping a moving agent
     start_penalty = 0  # penalty for starting a stopped agent
 
@@ -354,6 +362,7 @@ class RailEnv(Environment):
         if regenerate_rail or self.rail is None:
 
             if "__call__" in dir(self.rail_generator):
+
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
             elif "generate" in dir(self.rail_generator):
@@ -378,7 +387,10 @@ class RailEnv(Environment):
             if optionals and 'agents_hints' in optionals:
                 agents_hints = optionals['agents_hints']
 
-            schedule = self.schedule_generator(self.rail, self.number_of_agents, agents_hints, self.num_resets,
+            # Here is called the generator function of the schedule generator depending on the type of generation chosen
+
+            # Custom schedule generator arguments (rail, num_agents, hints, station_target, station_to_traverse, timetable, num_resets, np_randomState)
+            schedule = self.schedule_generator(self.rail, self.number_of_agents, agents_hints, self.num_resets, 
                                                self.np_random)
             self.agents = EnvAgent.from_schedule(schedule)
 
@@ -392,8 +404,10 @@ class RailEnv(Environment):
         self.reset_agents()
 
         for agent in self.agents:
+
             # Induce malfunctions
             if activate_agents:
+                #print('AGENT NUMBER', i_agent, 'IS ACTIVATING')
                 self.set_agent_active(agent)
 
             self._break_agent(agent)
@@ -406,6 +420,7 @@ class RailEnv(Environment):
 
         self.num_resets += 1
         self._elapsed_steps = 0
+        self.run_once = [0]*(self.number_of_agents)   # Flag to check when a train has started   
 
         # TODO perhaps dones should be part of each agent.
         self.dones = dict.fromkeys(list(range(self.get_num_agents())) + ["__all__"], False)
@@ -492,6 +507,8 @@ class RailEnv(Environment):
         """
         self._elapsed_steps += 1
 
+        print('Elapsed time is', self._elapsed_steps, 'minutes')   # DEBUG
+
         # If we're done, set reward and info_dict and step() is done.
         if self.dones["__all__"]:
             self.rewards_dict = {}
@@ -505,7 +522,7 @@ class RailEnv(Environment):
                 self.rewards_dict[i_agent] = self.global_reward
                 info_dict["action_required"][i_agent] = False
                 info_dict["malfunction"][i_agent] = 0
-                info_dict["speed"][i_agent] = 0
+                info_dict["speed"][i_agent] = 0      
                 info_dict["status"][i_agent] = agent.status
 
             return self._get_observations(), self.rewards_dict, self.dones, info_dict
@@ -522,8 +539,31 @@ class RailEnv(Environment):
 
         self.motionCheck = ac.MotionCheck()  # reset the motion check
 
+
+        # Added starting times for agents, an agent can start his activity after the starting of the simulation of the 
+        # environment (more realistic simulation)
         if not self.close_following:
             for i_agent, agent in enumerate(self.agents):
+
+                # Build info dict
+                rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
+                agent = self.agents[i_agent]
+
+                # Starting time of the agent
+                starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
+
+                # 
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                    agent.status = RailAgentStatus.ACTIVE
+                    self._set_agent_to_initial_position(agent, agent.initial_position)
+                    self.run_once[i_agent] = 1
+
                 # Reset the step rewards
                 self.rewards_dict[i_agent] = 0
 
@@ -539,7 +579,12 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = agent.speed_data['speed']
+                # Check the velocities the agents must have depending on the line they are on the type of train and on the time needed to reach in time 
+                # the next station
+                velocities = self.check_speed(optionals['agents_hints'], speed_ration_map_lines, 1)   # TODO variare velocità in base alla stazione da raggiungere
+
+                agent.speed_data['speed'] = velocities[i_agent]
+                info_dict["speed"][i_agent] = velocities[i_agent]
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -548,11 +593,33 @@ class RailEnv(Environment):
 
         else:
             for i_agent, agent in enumerate(self.agents):
+
+                # Build info dict
+                rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
+                agent = self.agents[i_agent]
+
+                # Starting time of the agent
+                starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
+                
+                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                    agent.status = RailAgentStatus.ACTIVE
+                    self._set_agent_to_initial_position(agent, agent.initial_position)
+                    self.run_once[i_agent] = 1
+
                 # Reset the step rewards
                 self.rewards_dict[i_agent] = 0
 
                 # Induce malfunction before we do a step, thus a broken agent can't move in this step
                 self._break_agent(agent)
+
+                #print(i_agent, agent.position, agent.status)
 
                 # Perform step on the agent
                 self._step_agent_cf(i_agent, action_dict_.get(i_agent))
@@ -562,7 +629,27 @@ class RailEnv(Environment):
 
             # third loop: update positions
             for i_agent, agent in enumerate(self.agents):
-                self._step_agent2_cf(i_agent)
+
+                # Build info dict
+                rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
+                agent = self.agents[i_agent]
+
+                # Starting time of the agent
+                starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
+                # The other check that the action has been done only one time. The status can't be always active
+                # for the agent, because when it reaches its target has to change
+                # the initial position is done only one time, then the position change depending on the action of the agent
+                
+                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
+                if (self._elapsed_steps >= starting_time):
+                    if (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                        agent.status = RailAgentStatus.ACTIVE
+                        self._set_agent_to_initial_position(agent, agent.initial_position)
+                        self.run_once[i_agent] = 1
+                    self._step_agent2_cf(i_agent)
 
                 # manage the boolean flag to check if all agents are indeed done (or done_removed)
                 have_all_agents_ended &= (agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED])
@@ -570,7 +657,12 @@ class RailEnv(Environment):
                 # Build info dict
                 info_dict["action_required"][i_agent] = self.action_required(agent)
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
-                info_dict["speed"][i_agent] = agent.speed_data['speed']
+                # Check the velocities the agents must have depending on the line they are on the type of train and on the time needed to reach in time 
+                # the next station
+                velocities = self.check_speed(optionals['agents_hints'], speed_ration_map_lines, 1)   # TODO variare velocità in base alla stazione da raggiungere
+
+                agent.speed_data['speed'] = velocities[i_agent]
+                info_dict["speed"][i_agent] = velocities[i_agent]
                 info_dict["status"][i_agent] = agent.status
 
                 # Fix agents that finished their malfunction such that they can perform an action in the next step
@@ -595,6 +687,8 @@ class RailEnv(Environment):
         - malfunction
         - action handling if at the beginning of cell
         - movement
+        - rewards if the station order is respected
+        - rewards if the passage time at the stations are respect
 
         Parameters
         ----------
@@ -602,18 +696,20 @@ class RailEnv(Environment):
         action_dict_ : Dict[int,RailEnvActions]
 
         """
+
         agent = self.agents[i_agent]
         if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
             return
 
         # agent gets active by a MOVE_* action and if c
-        if agent.status == RailAgentStatus.READY_TO_DEPART:
+        if (agent.status == RailAgentStatus.READY_TO_DEPART):  
             initial_cell_free = self.cell_free(agent.initial_position)
             is_action_starting = action in [
                 RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
 
             if action in [RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT,
-                          RailEnvActions.MOVE_FORWARD] and self.cell_free(agent.initial_position):
+                          RailEnvActions.MOVE_FORWARD] \
+                          and self.cell_free(agent.initial_position):
                 agent.status = RailAgentStatus.ACTIVE
                 self._set_agent_to_initial_position(agent, agent.initial_position)
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
@@ -694,7 +790,7 @@ class RailEnv(Environment):
         # If the new position fraction is >= 1, reset to 0, and perform the stored
         #   transition_action_on_cellexit if the cell is free.
         if agent.moving:
-            agent.speed_data['position_fraction'] += agent.speed_data['speed']
+            agent.speed_data['position_fraction'] += agent.speed_data['speed']  # TODO le cose della velocità
             if agent.speed_data['position_fraction'] > 1.0 or fast_isclose(agent.speed_data['position_fraction'], 1.0,
                                                                            rtol=1e-03):
                 # Perform stored action to transition to the next cell as soon as cell is free
@@ -730,16 +826,18 @@ class RailEnv(Environment):
     def _step_agent_cf(self, i_agent, action: Optional[RailEnvActions] = None):
         """ "close following" version of step_agent.
         """
+
         agent = self.agents[i_agent]
+
         if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
             return
 
-        # agent gets active by a MOVE_* action and if c
-        if agent.status == RailAgentStatus.READY_TO_DEPART:
+        # agent gets active by a MOVE_* action and if c, and check if the starting time is arrived
+        if (agent.status == RailAgentStatus.READY_TO_DEPART):   
             is_action_starting = action in [
-                RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
-
-            if is_action_starting:  # agent is trying to start
+                RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD] 
+            if is_action_starting \
+            and self.cell_free(agent.initial_position):  # agent is trying to start
                 self.motionCheck.addAgent(i_agent, None, agent.initial_position)
             else:  # agent wants to remain unstarted
                 self.motionCheck.addAgent(i_agent, None, None)
@@ -842,6 +940,7 @@ class RailEnv(Environment):
                 self.motionCheck.addAgent(i_agent, agent.position, agent.position)
 
     def _step_agent2_cf(self, i_agent):
+
         agent = self.agents[i_agent]
 
         if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:
@@ -892,6 +991,12 @@ class RailEnv(Environment):
                 self.active_agents.remove(i_agent)
                 agent.moving = False
                 self._remove_agent_from_scene(agent)
+
+            # has the agent passed from the schedulated intermediate stations?
+            rail, optionals = self.rail_generator(
+                    self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+            if self.check_intermediate_station_passage(optionals['agents_hints']):
+                self.rewards_dict[i_agent] += self.order_rewards  #reward for the right order
             else:
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
         else:
@@ -961,6 +1066,7 @@ class RailEnv(Environment):
         """
         # compute number of possible transitions in the current
         # cell used to check for invalid actions
+
         new_direction, transition_valid = self.check_action(agent, action)
         new_position = get_new_position(agent.position, new_direction)
 
@@ -991,6 +1097,7 @@ class RailEnv(Environment):
         ''' Record the positions and orientations of all agents in memory, in the cur_episode
         '''
         list_agents_state = []
+
         for i_agent in range(self.get_num_agents()):
             agent = self.agents[i_agent]
             # the int cast is to avoid numpy types which may cause problems with msgpack
@@ -1007,7 +1114,10 @@ class RailEnv(Environment):
                     int(agent.position in self.motionCheck.svDeadlocked)
                     ])
 
+            #print('AGENT POSITIONS:', list_agents_state)  DEBUG
+
         self.cur_episode.append(list_agents_state)
+        #print('AGENT POSITIONS:', self.cur_episode)
         self.list_actions.append(dActions)
 
     def cell_free(self, position: IntVector2D) -> bool:
@@ -1121,3 +1231,85 @@ class RailEnv(Environment):
     def save(self, filename):
         print("deprecated call to env.save() - pls call RailEnvPersister.save()")
         persistence.RailEnvPersister.save(self, filename)
+
+    # This function has to check if the intermediate stations are passed in the right order
+    def check_intermediate_station_passage(self, agents_hints):
+
+        # This variable has the position of all the agents for each time-stamp
+        # its a list of lists (each time-stamp) of lists (each agent), each agent list contein the position (x,y) and the direction (L N R S)
+        position = self.cur_episode
+        num_agents = len(self.agents)
+        # Timetable is a list of lists (agents) with two arrays, once for the stations and once for the times
+        timetable = agents_hints['timetable']
+        # contatore per non 
+
+        #Variable to check the order of the passage in the intermediate stations for each train
+        station_order = [0] * num_agents
+        #print('timetable for the i agent agent:', timetable[agent][0][0][0])
+        for timestamps in range(len(position)):
+            for agents in range(num_agents): 
+                # Checking if the intermediate station are reached or not
+                # I need to compare two tuple, so i have to convert the position (list) to a tuple
+
+                if(tuple(position[timestamps][agents][0:2]) == timetable[agents][0][station_order[agents]]):
+                    station_order[agents] += 1
+                    #print(station_order[agents], 'questo è la stazione numero tot raggiunta dal treno numero', agents)
+
+                    # Check if the train i have finished his passage from the stations or not
+                    if (station_order[agents] == (len(timetable[agents][0]))):
+
+                        #print('Positione del treno',agents,'al time stamp',timestamps,'è:',position[timestamps][agents][0:2])
+
+                        # Resetting the station order of the agent i
+                        station_order[agents] = 0
+                        return True
+                    else:
+                        return False
+            else: 
+                return False
+
+    def check_passage_time(self, agents_hints):
+        return(0)
+
+        # TODO Check the velocity depending on the timetable...
+    def check_speed(self, agents_hints, lines_velocities, train_type):
+
+        # Velocity depending on the line
+        velocity = lines_velocities
+
+        # Velocity depending on the train type and on the line (Take the minimum between the two possible velocities)
+        train_velocities = [0]*self.number_of_agents
+
+        # Check for all the agents
+        for i_agent, agent in enumerate(self.agents):
+
+            # the i_agent
+            agent = self.agents[i_agent]
+
+            # Check if the agent is in the environment or not
+            if agent.position != None:
+
+                # If the agent is in the line i the max velocity is x
+
+                # High velocity line case
+                if (
+                        (line_a_b[0][0] <= agent.position[0] <= line_a_b[1][0]) and (line_a_b[0][1] <= agent.position[1] <= line_a_b[1][1])) or \
+                        ((line_b_e[0][0] <= agent.position[0] <= line_b_e[1][0]) and (line_b_e[0][1] <= agent.position[1] <= line_b_e[1][1])
+                    ):  
+
+                    train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])
+                
+                # Regional line case
+                elif (
+                        ((line_a_c[0][0] <= agent.position[0] <= line_a_c[1][0]) and (line_a_c[0][1] <= agent.position[1] <= line_a_c[1][1])) or \
+                        ((line_c_d[0][0] <= agent.position[0] <= line_c_d[1][0]) and (line_c_d[0][1] <= agent.position[1] <= line_c_d[1][1])) or \
+                        ((line_d_e[0][0] <= agent.position[0] <= line_d_e[1][0]) and (line_d_e[0][1] <= agent.position[1] <= line_d_e[1][1]))
+                    ):
+
+                    train_velocities[i_agent] = min(velocity[1], agents_hints['timetable'][i_agent][2])
+
+        return train_velocities
+
+
+
+
