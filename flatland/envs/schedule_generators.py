@@ -11,6 +11,11 @@ from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.schedule_utils import Schedule
 from flatland.envs import persistence
 
+# This is to test if the timetable is valid or not
+from flatland.core.grid.grid4_astar import a_star
+
+from structures import railway_example_1, stations, timetable_example_1
+
 AgentPosition = Tuple[int, int]
 ScheduleGenerator = Callable[[GridTransitionMap, int, Optional[Any], Optional[int]], Schedule]
 
@@ -39,6 +44,44 @@ def speed_initialization_helper(nb_agents: int, speed_ratio_map: Mapping[float, 
     speeds = list(map(lambda t: t[0], speed_ratio_map_as_list))
     print (nb_classes, nb_agents, speed_ratios)
     return list(map(lambda index: speeds[index], np_random.choice(nb_classes, nb_agents, p=speed_ratios)))
+
+
+# Check if the timetable is feaseble or not
+def control_timetable(timetable, railway_topology):
+    # Check for all the trains
+    for trains in range (len(timetable)):       
+        # Check for all the stations
+        # Calculate the difference of two different times, so i don't need the last term to cycle          
+        for stations in range (len(timetable[trains][1]) - 1):   
+            if (timetable[trains][1][stations] - timetable[trains][1][stations + 1]) >= 0:
+                print('===================================================================================================================================')
+                print('Attenction!!! The agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
+                print('The time to reach the successive station SHOULD BE > 0, pay attenction to the timetable')
+                # Function that check if the time to reach a station defined by the timetable are possible or not,
+                # Return the time minimum time to reach two different stations depending on the distance and on the line type (high velocity, regional...)
+            time_to_next_station = time_to_reach_next_station(timetable[trains][0][stations], timetable[trains][0][stations + 1], railway_topology)
+            # Control if the time to reach the next station is possible (considering maximum velocities of lines and the distances between two stations)
+            if time_to_next_station > (timetable[trains][1][stations+1]- timetable[trains][1][stations]):
+                print('===================================================================================================================================')
+                print('Attenction!!! Agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
+                print('The time to reach the next station SHOULD BE HIGHER, the minimum time to reach the station should be:', time_to_next_station)
+    return
+
+# TODO try to define a more general way the different kind of line
+def time_to_reach_next_station(departure_station_position, arrival_station_position, railway_topology):
+    # First thing check the distance between two stations 
+    result = a_star(railway_topology, departure_station_position, arrival_station_position)
+    distance = len(result)  # distance between stations
+    # Im on a high velocity line? The max velocity is 1
+    if (departure_station_position == stations[0] or departure_station_position == stations[1] or departure_station_position == stations[4]) \
+        and (arrival_station_position == stations[0] or arrival_station_position == stations[1] or arrival_station_position == stations[4]):
+        return distance 
+    # I'm on a regional line? The max velocity is 1/2 so the time is the double of the distance. 
+    # If I'm half regional and half high velocity line I follow the slowest line
+    else:
+        return (distance * 2)
+
+    return False    
 
 
 class BaseSchedGen(object):
@@ -103,7 +146,7 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         # DEBUG
         agents_position = hints['train_stations']
         agents_target = hints['targets']
-        agents_direction = [3,1,1,1,1]  # TO DO ADJUST THIS
+        agents_direction = [1,1,1,1,2]  # TODO ADJUST THIS
 
         #print(agents_position, agents_target, station_to_traverse, agents_direction, timetable)
 
