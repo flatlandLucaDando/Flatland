@@ -32,9 +32,10 @@
 - 10- Estendere schedule generator in modo che l'utente possa specificare gli orari a tutte le stazioni (già ora sembra sia possibile fissare il target time alla stazione target)
 
 - 11- Cambiare la reward per favorire il passaggio per stazioni intermedie all'orario indicato dall'utente
+- 11.5- Punizione per treni che a fine giornata non sono nella stazione di partenza (mattina)
 
 - 12- Implementare l’azione retromarcia
-- 12.5- Valutare l’introduzione dell’azione “soppressione treno” e implementarla 
+- 12.5- Introduzione soppressione di corse di treni e implementazione 
 
 - 13- Addestramento e test modello RL su rete ferroviaria completa, in diverse ore del giorno
 - 14- Fine tuning e testing del modello con diverse interruzioni
