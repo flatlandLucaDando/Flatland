@@ -32,7 +32,7 @@
 - 10- Estendere schedule generator in modo che l'utente possa specificare gli orari a tutte le stazioni (già ora sembra sia possibile fissare il target time alla stazione target)
 
 - 11- Cambiare la reward per favorire il passaggio per stazioni intermedie all'orario indicato dall'utente
-- 11.5- Punizione per treni che a fine giornata non sono nella stazione di partenza (mattina)
+- 11.5- Punizione per treni che a fine giornata non sono nella stazione di partenza di inizio giornata (o comunque nella stazione in cui dovrebbero essere depositati da tabella)
 
 - 12- Implementare l’azione retromarcia
 - 12.5- Introduzione soppressione di corse di treni e implementazione 
