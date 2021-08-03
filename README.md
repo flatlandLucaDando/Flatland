@@ -30,8 +30,8 @@
 - 8- Estendere schedule generator in modo che l'utente possa specificare degli instradamenti (dove andare agli incroci/scambi, incl. direzione di partenza dalla prima stazione)
 (l'instradamento è fisso, i binari hanno un'unica direzione, quando c'è un'interruzione questi due vincoli possono essere rotti dai treni)
 - 9- Cambiare la reward per favorire l’instradamento indicato dall’utente
-- 10- Estendere schedule generator in modo che l'utente possa specificare gli orari a tutte le stazioni (già ora sembra sia possibile fissare il target time alla stazione target)
---
+- 10- Estendere schedule generator in modo che l'utente possa specificare gli orari a tutte le stazioni (già ora sembra sia possibile fissare il target time alla stazione target)   
+--    
 - 10.5 Creare una funzione per i test ---> input: orari, stazione partenza, stazione arrivo, tipo treno; output: orario e stazioni intermedie da attraversare   
 - 11- Cambiare la reward per favorire il passaggio per stazioni intermedie all'orario indicato dall'utente
 - 11.5- Punizione per treni che a fine giornata non sono nella stazione di partenza di inizio giornata (o comunque nella stazione in cui dovrebbero essere depositati da tabella)
