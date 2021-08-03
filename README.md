@@ -33,7 +33,7 @@
 - 10- Estendere schedule generator in modo che l'utente possa specificare gli orari a tutte le stazioni (già ora sembra sia possibile fissare il target time alla stazione target)
 
 ##################################################
-- 10.5 Creare una funzione per i test ---> input: orari, stazione partenza, stazione arrivo, tipo treno; output: orario e stazioni intermedie da attraversare
+- 10.5 Creare una funzione per i test ---> input: orari, stazione partenza, stazione arrivo, tipo treno; output: orario e stazioni intermedie da attraversare   
 ##################################################
 
 - 11- Cambiare la reward per favorire il passaggio per stazioni intermedie all'orario indicato dall'utente
