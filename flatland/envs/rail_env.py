@@ -715,7 +715,6 @@ class RailEnv(Environment):
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
                 return
             else:
-                # TODO: Here we need to check for the departure time in future releases with full schedules
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
                 return
 
