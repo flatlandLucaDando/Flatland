@@ -71,10 +71,18 @@ def control_timetable(timetable, railway_topology):
 def time_to_reach_next_station(departure_station_position, arrival_station_position, railway_topology):
     # First thing check the distance between two stations 
     result = a_star(railway_topology, departure_station_position, arrival_station_position)
-    distance = len(result)  # distance between stations
+    distance = len(result)  # distance between stationsù
+
+    high_velocity_stations = []    
+    for station in range(len(stations)):
+        if stations[station][1] == 1.:
+            high_velocity_stations.append(station) 
+
     # Im on a high velocity line? The max velocity is 1
-    if (departure_station_position == stations[0] or departure_station_position == stations[1] or departure_station_position == stations[4]) \
-        and (arrival_station_position == stations[0] or arrival_station_position == stations[1] or arrival_station_position == stations[4]):
+    if (departure_station_position == stations[high_velocity_stations[0]][0] or departure_station_position == stations[high_velocity_stations[1]][0] or \
+        departure_station_position == stations[high_velocity_stations[2]][0]) \
+        and (arrival_station_position == stations[high_velocity_stations[0]][0] or arrival_station_position == stations[high_velocity_stations[1]][0] or \
+            arrival_station_position == stations[high_velocity_stations[2]][0]):
         return distance 
     # I'm on a regional line? The max velocity is 1/2 so the time is the double of the distance. 
     # If I'm half regional and half high velocity line I follow the slowest line
@@ -97,11 +105,6 @@ class BaseSchedGen(object):
         return self.generate(*args, **kwargs)
 
 def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, seed: int = 1) -> ScheduleGenerator:
-    #return Custom_schedule_generator(speed_ratio_map, seed)  # Debug
-
-#############################################################################################################
-# TO DO, the agents start from a defined point at different time stamp. Remember this fact. Is very important
-#############################################################################################################
 
 #class Custom_schedule_generator(BaseSchedGen):
     """
@@ -125,12 +128,6 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         city_positions = hints['city_positions']
         city_orientation = hints['city_orientations']
         max_num_agents = hints['num_agents']
-        city_orientations = hints['city_orientations']
-
-
-        # DEBUG
-        #print('Train stations:', train_stations,' City position:', city_positions, 'Len city position:', type(city_positions), 'City orientation:', city_orientation,'Max num agents:',  max_num_agents)
-        #print('Le stazioni da attraversare sono:', station_to_traverse)
 
         if num_agents > max_num_agents:
             num_agents = max_num_agents
@@ -140,15 +137,19 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         agents_target = []
         agents_direction = []
 
-        ################ TO DO #################################    
-        # Define the station the agent have to go across and the timetable and the target
+        # Define the agent positions
+        for agent_i in range (len(timetable_example_1)):
+            agents_position.append(timetable_example_1[agent_i][0][0])
+            agents_target.append(timetable_example_1[agent_i][0][-1])
 
-        # DEBUG
-        agents_position = hints['train_stations']
-        agents_target = hints['targets']
-        agents_direction = [1,1,1,1,2]  # TODO ADJUST THIS
+        # Define the direction of the trains based on the rail they occupy
+        # Input --> the topology of the network, the position of the trains
+        # Output --> an array with the directions of the trains
+        # DIRECTIONS: 0 = UP, 1 = RIGHT, 2 = DOWN, 3 = LEFT
 
-        #print(agents_position, agents_target, station_to_traverse, agents_direction, timetable)
+        agents_direction = check_rail_road_direction(rail, agents_position)
+
+        print(agents_position, agents_target, agents_direction)
 
         _runtime_seed = seed + num_resets
 
@@ -469,3 +470,29 @@ def schedule_from_file(filename, load_from_package=None) -> ScheduleGenerator:
                         max_episode_steps=max_episode_steps)
 
     return generator
+
+
+
+def check_rail_road_direction(rail: GridTransitionMap, trains_position):
+    # To establish the direction of trains in the railroas I define a simple law, as for the cars, each trains has to 
+    # go the direction that let them to have the right free
+
+    agents_direction = [0]*len(trains_position)
+
+    for i in range (len(trains_position)):
+
+        ''' DEBUG TO STUDY THE POSITION OF THE TRAIN
+        rail.grid[trains_position[i][0] + 1,trains_position[i][1]] ---> DOWN  | if == 0  direction = right (1)
+        rail.grid[trains_position[i][0] - 1,trains_position[i][1]] ---> UP    | if == 0  direction = left  (3)
+        rail.grid[trains_position[i][0],trains_position[i][1] + 1] ---> RIGHT | if == 0  direction = up    (0)
+        rail.grid[trains_position[i][0],trains_position[i][1] - 1] ---> LEFT  | if == 0  direction = down  (2)
+        '''
+        if (rail.grid[trains_position[i][0] + 1,trains_position[i][1]]) == 0:
+            agents_direction[i] = 1
+        elif (rail.grid[trains_position[i][0] - 1,trains_position[i][1]]) == 0:
+            agents_direction[i] = 3
+        elif (rail.grid[trains_position[i][0],trains_position[i][1] + 1]) == 0:
+            agents_direction[i] = 0
+        elif (rail.grid[trains_position[i][0],trains_position[i][1] - 1]) == 0:
+            agents_direction[i] = 2
+    return agents_direction
