@@ -28,11 +28,13 @@ height_example_1 = 30
 specs = railway_example_1
 
 # Defining the name of the different stations
-station_a = stations[0]
-station_b = stations[1]
-station_c = stations[2]
-station_d = stations[3]
-station_e = stations[4]
+station_a = stations[0][0]
+station_b = stations[1][0]
+station_c = stations[2][0]
+station_d = stations[3][0]
+station_e = stations[4][0]
+
+stations_position = [station_a, station_b, station_c, station_d, station_e]
 
 # Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
 # each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
@@ -53,7 +55,7 @@ seed = 2
 # Generating the railway topology, with stations
 # Arguments of the generator (specs of the railway, position of stations, timetable)
 
-rail_custom = rail_custom_generator(specs, stations, timetable)
+rail_custom = rail_custom_generator(specs, stations_position, timetable)
 
 transition_map_example_1, agent_hints = rail_custom(widht_example_1, height_example_1, num_of_agents)
 
