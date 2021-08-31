@@ -65,6 +65,7 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
     start_node = AStarNode(start, None)
     end_node = AStarNode(end, None)
     open_nodes = OrderedSet()
+    #print('open nodes all inizio',open_nodes)
     closed_nodes = OrderedSet()
     open_nodes.add(start_node)
 
@@ -74,9 +75,13 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
         for item in open_nodes:
             if current_node is None:
                 current_node = item
+                #print('Current node all inizio',current_node)
                 continue
             if item.f < current_node.f:
                 current_node = item
+                #print('Current node in generale',current_node.pos, current_node.parent.pos, current_node.f)
+
+            #print('open nodes nel ciclo ', open_nodes.pos)
 
         # pop current off open list, add to closed list
         open_nodes.remove(current_node)
@@ -89,6 +94,8 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
             while current is not None:
                 path.append(current.pos)
                 current = current.parent
+
+                #print(path)
 
             # return reversed path
             return path[::-1]
@@ -110,10 +117,16 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
 
             # validate positions
             #
+            '''
             if not grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos,
                                                     end_node.pos) and respect_transition_validity:
                 continue
             # create new node
+            '''
+
+            if not grid_map.check_transition_is_possible(prev_pos, current_node.pos, node_pos) and respect_transition_validity:
+                continue
+
             new_node = AStarNode(node_pos, current_node)
 
             # Skip paths through forbidden regions if they are provided
