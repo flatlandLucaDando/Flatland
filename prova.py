@@ -11,13 +11,13 @@ from flatland.envs.observations import GlobalObsForRailEnv
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
 # Importing the railway generators
-from flatland.envs.rail_generators import rail_from_manual_specifications_generator, rail_custom_generator
+from flatland.envs.rail_generators import rail_from_manual_specifications_generator, rail_custom_generator, sparse_rail_generator
 from flatland.envs.predictions import ShortestPathPredictorForRailEnv
 from flatland.utils.rendertools import RenderTool
 from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Importing the schedule generators
-from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, complex_schedule_generator, control_timetable
+from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, complex_schedule_generator, control_timetable, sparse_schedule_generator
 # Importing the different structures needed
 from structures import railway_example_1, stations, timetable_example_1
 
@@ -64,6 +64,10 @@ control_timetable(timetable,transition_map_example_1)
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator()
 
+''' DEBUG!!!!
+rail_custom = sparse_rail_generator(max_rails_in_city = 8)
+schedule_generator_custom = sparse_schedule_generator()
+'''
 TreeObservation = GlobalObsForRailEnv()
 
 env = RailEnv(  width= widht_example_1,
@@ -83,6 +87,10 @@ env_renderer = RenderTool(env,
 						  screen_height=1080*2,
 						  screen_width=1080*2)  # Adjust these parameters to fit your resolution
 
+# DEBUG!!!
+#env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
+#input("Press Enter to continue...")
+
 
 
 # Import your own Agent or use RLlib to train agents on Flatland
@@ -100,9 +108,15 @@ class RandomAgent:
 		:return: returns an action
 		"""
 
-		return(RailEnvActions.MOVE_FORWARD) # DEBUG, only move forward action for now
+		############################################################################################
+		############################################################################################
+		###############              HERE DEFINE WHAT ACTIONS TO USE                 ###############
+		############################################################################################
+		############################################################################################
+
+		#return(RailEnvActions.MOVE_FORWARD) # DEBUG, only move forward action for now
 		
-		#return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
+		return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
 
 	def step(self, memories):
 		"""
@@ -163,7 +177,7 @@ for agent_idx, agent in enumerate(env.agents):
 action_dict = dict()
 
 for agent_id in agents_with_same_start:
-	action_dict[agent_id] = 1  # Try to move with the agents
+	action_dict[agent_id] = 0 # Try to move with the agents
 
 # Do a step in the environment to see what agents entered:
 env.step(action_dict)
