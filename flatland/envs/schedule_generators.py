@@ -3,6 +3,7 @@ import warnings
 from typing import Tuple, List, Callable, Mapping, Optional, Any
 
 import numpy as np
+from enum import IntEnum
 from numpy.random.mtrand import RandomState
 
 from flatland.core.grid.grid4_utils import get_new_position
@@ -19,6 +20,22 @@ from structures import railway_example_1, stations, timetable_example_1
 AgentPosition = Tuple[int, int]
 ScheduleGenerator = Callable[[GridTransitionMap, int, Optional[Any], Optional[int]], Schedule]
 
+class RailEnvActions(IntEnum):
+    DO_NOTHING = 0  # implies change of direction in a dead-end!
+    MOVE_LEFT = 1
+    MOVE_FORWARD = 2
+    MOVE_RIGHT = 3
+    STOP_MOVING = 4
+
+    @staticmethod
+    def to_char(a: int):
+        return {
+            0: 'B',
+            1: 'L',
+            2: 'F',
+            3: 'R',
+            4: 'S',
+        }[a]
 
 def speed_initialization_helper(nb_agents: int, speed_ratio_map: Mapping[float, float] = None,
                                 seed: int = None, np_random: RandomState = None) -> List[float]:
@@ -64,13 +81,59 @@ def control_timetable(timetable, railway_topology):
             if time_to_next_station > (timetable[trains][1][stations+1]- timetable[trains][1][stations]):
                 print('===================================================================================================================================')
                 print('Attenction!!! Agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
-                print('The time to reach the next station SHOULD BE HIGHER, the minimum time to reach the station should be:', time_to_next_station)
+                print('The time to reach the next station SHOULD BE HIGHER. The minimum time to reach the station should be:', time_to_next_station)
     return
 
-# TODO try to define a more general way the different kind of line
+# Define the scheduled actions the agents have to do
+def action_to_do(timetable, railway_topology):
+    # Path to do to arrive to the right station
+    path_result = []
+    # Calculate the path for all the trains
+    for train_i in range (len(timetable)):
+        path_result.append(a_star(railway_topology,timetable[train_i][0][0],timetable[train_i][0][-1]))
+    # Calculate the actions that have to be done
+    actions_to_do = []
+    for train_i in range (len(timetable)):
+        for step in range (len(path_result[train_i]) - 1):
+            # Calculate the direction of the trains at each step
+            difference_y = path_result[train_i][step][0] - path_result[train_i][step + 1][0]
+            difference_x = path_result[train_i][step][1] - path_result[train_i][step + 1][1]
+            if difference_y == 1:
+                direction = 0
+            if difference_x ==  -1:
+                direction = 1
+            if difference_y == -1:
+                direction = 2
+            if difference_x == 1:
+                direction = 3 
+            if step == 0:
+                actions_to_do.append(RailEnvActions.MOVE_FORWARD)
+                prev_direction = direction
+            else:
+                if prev_direction == direction:
+                    actions_to_do.append(RailEnvActions.MOVE_FORWARD)
+                else:
+                    actions_to_do.append(RailEnvActions.MOVE_RIGHT)
+                    #print(railway_topology.grid[path_result[train_i][step]], path_result[train_i][step])
+    #print(actions_to_do)
+    return actions_to_do
+
+
+
+# Calculate the time to reach the stations to understand if timetable is right
 def time_to_reach_next_station(departure_station_position, arrival_station_position, railway_topology):
     # First thing check the distance between two stations 
     result = a_star(railway_topology, departure_station_position, arrival_station_position)
+
+    '''
+    print('Il risultato di astar è', result)
+    print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+    print(railway_topology.grid[8, 25])
+    print(railway_topology.get_transitions(21,49,1))
+    #print(railway_topology.check_transition_is_possible((8,24),(9,24)))
+    print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+    '''
+
     distance = len(result)  # distance between stationsù
 
     high_velocity_stations = []    
@@ -142,6 +205,7 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
             agents_position.append(timetable_example_1[agent_i][0][0])
             agents_target.append(timetable_example_1[agent_i][0][-1])
 
+
         # Define the direction of the trains based on the rail they occupy
         # Input --> the topology of the network, the position of the trains
         # Output --> an array with the directions of the trains
@@ -149,7 +213,6 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
 
         agents_direction = check_rail_road_direction(rail, agents_position)
 
-        print(agents_position, agents_target, agents_direction)
 
         _runtime_seed = seed + num_resets
 
@@ -478,6 +541,8 @@ def check_rail_road_direction(rail: GridTransitionMap, trains_position):
     # go the direction that let them to have the right free
 
     agents_direction = [0]*len(trains_position)
+
+    #print(rail.grid[7 ,13],rail.grid[7 ,12],rail.grid[7 ,11],rail.grid[7 ,10],rail.grid[7 ,9],rail.grid[7 ,8],rail.grid[7 ,7],rail.grid[7 ,6], rail.grid[7 ,5])
 
     for i in range (len(trains_position)):
 
