@@ -17,9 +17,12 @@ from flatland.utils.rendertools import RenderTool
 from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Importing the schedule generators
-from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, complex_schedule_generator, control_timetable, sparse_schedule_generator
+from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, action_to_do, complex_schedule_generator, control_timetable, sparse_schedule_generator
 # Importing the different structures needed
 from structures import railway_example_1, stations, timetable_example_1
+
+# Flag active in case of interruptions
+interruption = False
 
 widht_example_1 = 40
 height_example_1 = 30
@@ -64,6 +67,9 @@ control_timetable(timetable,transition_map_example_1)
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator()
 
+actions_scheduled = action_to_do(timetable, transition_map_example_1)
+#print(actions_scheduled)
+
 ''' DEBUG!!!!
 rail_custom = sparse_rail_generator(max_rails_in_city = 8)
 schedule_generator_custom = sparse_schedule_generator()
@@ -102,6 +108,9 @@ class RandomAgent:
 		self.action_size = action_size
 
 	def act(self, state):
+		return RailEnvActions.MOVE_FORWARD
+
+	def act_scheduled(self, step, actions_scheduled):
 		"""
 
 		:param state: input is the observation of the agent
@@ -115,8 +124,11 @@ class RandomAgent:
 		############################################################################################
 
 		#return(RailEnvActions.MOVE_FORWARD) # DEBUG, only move forward action for now
-		
-		return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
+		if not interruption:
+			#print(actions_scheduled[0])
+			return actions_scheduled[step]
+		else:
+			return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
 
 	def step(self, memories):
 		"""
@@ -275,7 +287,7 @@ for trials in range(1, n_trials + 1):
 	for step in range(500):
 		# Chose an action for each agent in the environment
 		for a in range(env.get_num_agents()):
-			action = controller.act(obs[a])
+			action = controller.act_scheduled(step, actions_scheduled)
 			action_dict.update({a: action})
 		# Environment step which returns the observations for all agents, their corresponding
 		# reward and whether their are done
