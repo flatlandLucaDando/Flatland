@@ -29,7 +29,7 @@ from flatland.envs import agent_chains as ac
 from flatland.envs.observations import GlobalObsForRailEnv
 from gym.utils import seeding
 
-from structures import speed_ration_map_lines, line_a_b, line_b_e, line_a_c, line_c_d, line_d_e
+from structures import speed_ration_map_lines, av_line
 
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
@@ -545,6 +545,9 @@ class RailEnv(Environment):
         if not self.close_following:
             for i_agent, agent in enumerate(self.agents):
 
+                # For DEBUG
+                print('Velocity of the', i_agent, 'agent is', agent.speed_data['speed'])
+
                 # Build info dict
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
@@ -559,7 +562,7 @@ class RailEnv(Environment):
                 # the initial position is done only one time, then the position change depending on the action of the agent
 
                 # 
-                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0): # and (self.cell_free(agent.initial_position)):
                     agent.status = RailAgentStatus.ACTIVE
                     self._set_agent_to_initial_position(agent, agent.initial_position)
                     self.run_once[i_agent] = 1
@@ -594,6 +597,9 @@ class RailEnv(Environment):
         else:
             for i_agent, agent in enumerate(self.agents):
 
+                # For DEBUG
+                print('Velocity of the', i_agent, 'agent is', agent.speed_data['speed'])
+
                 # Build info dict
                 rail, optionals = self.rail_generator(
                     self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
@@ -607,8 +613,7 @@ class RailEnv(Environment):
                 # for the agent, because when it reaches its target has to change
                 # the initial position is done only one time, then the position change depending on the action of the agent
                 
-                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
-                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                if (self._elapsed_steps >= starting_time) and (self.run_once[i_agent] == 0): # and (self.cell_free(agent.initial_position)):
                     agent.status = RailAgentStatus.ACTIVE
                     self._set_agent_to_initial_position(agent, agent.initial_position)
                     self.run_once[i_agent] = 1
@@ -645,7 +650,7 @@ class RailEnv(Environment):
                 
                 # TODO mancano controlli sul fatto che la posizione iniziale sia libera
                 if (self._elapsed_steps >= starting_time):
-                    if (self.run_once[i_agent] == 0) and (self.cell_free(agent.initial_position)):
+                    if (self.run_once[i_agent] == 0): #(self.cell_free(agent.initial_position)):
                         agent.status = RailAgentStatus.ACTIVE
                         self._set_agent_to_initial_position(agent, agent.initial_position)
                         self.run_once[i_agent] = 1
@@ -708,8 +713,8 @@ class RailEnv(Environment):
                 RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_FORWARD]
 
             if action in [RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT,
-                          RailEnvActions.MOVE_FORWARD] \
-                          and self.cell_free(agent.initial_position):
+                          RailEnvActions.MOVE_FORWARD]:
+                          # and self.cell_free(agent.initial_position):
                 agent.status = RailAgentStatus.ACTIVE
                 self._set_agent_to_initial_position(agent, agent.initial_position)
                 self.rewards_dict[i_agent] += self.step_penalty * agent.speed_data['speed']
@@ -968,7 +973,7 @@ class RailEnv(Environment):
                     agent.speed_data['transition_action_on_cellexit'], agent)
 
                 if not all([transition_valid, new_cell_valid]):
-                    print(f"ERRROR: step_agent2 invalid transition ag {i_agent} dir {new_direction} pos {agent.position} next {rc_next}")
+                    print(f"ERROR: step_agent2 invalid transition ag {i_agent} dir {new_direction} pos {agent.position} next {rc_next}")
 
                 if new_position != rc_next:
                     print(f"ERROR: agent {i_agent} new_pos {new_position} != rc_next {rc_next}  " + 
@@ -1292,20 +1297,10 @@ class RailEnv(Environment):
                 # If the agent is in the line i the max velocity is x
 
                 # High velocity line case
-                if (
-                        (line_a_b[0][0] <= agent.position[0] <= line_a_b[1][0]) and (line_a_b[0][1] <= agent.position[1] <= line_a_b[1][1])) or \
-                        ((line_b_e[0][0] <= agent.position[0] <= line_b_e[1][0]) and (line_b_e[0][1] <= agent.position[1] <= line_b_e[1][1])
-                    ):  
-
-                    train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])
-                
+                if (agent.position in av_line):  
+                    train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])                
                 # Regional line case
-                elif (
-                        ((line_a_c[0][0] <= agent.position[0] <= line_a_c[1][0]) and (line_a_c[0][1] <= agent.position[1] <= line_a_c[1][1])) or \
-                        ((line_c_d[0][0] <= agent.position[0] <= line_c_d[1][0]) and (line_c_d[0][1] <= agent.position[1] <= line_c_d[1][1])) or \
-                        ((line_d_e[0][0] <= agent.position[0] <= line_d_e[1][0]) and (line_d_e[0][1] <= agent.position[1] <= line_d_e[1][1]))
-                    ):
-
+                else:
                     train_velocities[i_agent] = min(velocity[1], agents_hints['timetable'][i_agent][2])
 
         return train_velocities
