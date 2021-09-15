@@ -117,17 +117,24 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
 
             # validate positions
             #
-            '''
-            if not grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos,
-                                                    end_node.pos) and respect_transition_validity:
+
+            if not grid_map.check_transition_is_possible(prev_pos, current_node.pos, node_pos) \
+             and respect_transition_validity:
                 continue
-            # create new node
+
+            '''
+            if grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) and respect_transition_validity:
+                   # and grid_map.check_direction_of_railroad(prev_pos, current_node.pos, node_pos):
+                print('=========================================')
+                print(prev_pos, current_node.pos, node_pos)
+                continue
             '''
 
-            if not grid_map.check_transition_is_possible(prev_pos, current_node.pos, node_pos) and respect_transition_validity:
-                continue
+
+            # create new node
 
             new_node = AStarNode(node_pos, current_node)
+            #print(new_node.pos)
 
             # Skip paths through forbidden regions if they are provided
             if forbidden_cells is not None:
