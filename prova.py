@@ -19,32 +19,37 @@ from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Importing the schedule generators
 from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, action_to_do, complex_schedule_generator, control_timetable, sparse_schedule_generator
 # Importing the different structures needed
-from structures import railway_example_1, stations, timetable_example_1
+from structures import railway_example, stations, timetable_example
+
+from flatland.core.grid.grid4_astar import a_star
 
 # Flag active in case of interruptions
 interruption = False
 
-widht_example_1 = 40
-height_example_1 = 30
-
 # The specs for the custom railway generation are taken from structures.py file
-specs = railway_example_1
+specs = railway_example
+
+widht = len(specs[0])
+height = len(specs)
+
+stations_position = []
 
 # Defining the name of the different stations
-station_a = stations[0][0]
-station_b = stations[1][0]
-station_c = stations[2][0]
-station_d = stations[3][0]
-station_e = stations[4][0]
-
-stations_position = [station_a, station_b, station_c, station_d, station_e]
+for i in range(1, len(stations)):
+	stations_position.append(stations[i][0])
 
 # Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
 # each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
 # Each row represent a different train
 
 # Importing the timetable
-timetable = timetable_example_1
+timetable = timetable_example
+
+print('=====================================================')
+print('==================  TIMETABLE  ======================')
+print('=====================================================')
+for i in range(len(timetable)):
+	print(timetable[i])
 
 # Number of agents is the rows of the timetable
 num_of_agents = len(timetable)
@@ -60,24 +65,33 @@ seed = 2
 
 rail_custom = rail_custom_generator(specs, stations_position, timetable)
 
-transition_map_example_1, agent_hints = rail_custom(widht_example_1, height_example_1, num_of_agents)
+transition_map_example_4, agent_hints = rail_custom(widht, height, num_of_agents)
 
-control_timetable(timetable,transition_map_example_1)
+control_timetable(timetable,transition_map_example_4)
+
+# Debug, used to print the av lines
+#print(a_star(transition_map_example_4,(20,2), (15,48)))
 
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator()
 
-actions_scheduled = action_to_do(timetable, transition_map_example_1)
-#print(actions_scheduled)
+actions_scheduled = action_to_do(timetable, transition_map_example_4)
 
-''' DEBUG!!!!
-rail_custom = sparse_rail_generator(max_rails_in_city = 8)
-schedule_generator_custom = sparse_schedule_generator()
-'''
+# DEBUG
+for i in range(len(actions_scheduled)):
+	print()
+	print(actions_scheduled[i])
+	print()
+
+# DEBUG
+#print(len(actions_scheduled[0]), len(actions_scheduled[1]), len(actions_scheduled[2]), len(actions_scheduled[3]), len(actions_scheduled[4]), len(actions_scheduled[5]))
+#print(actions_scheduled)
+#print(len(actions_scheduled[0]))
+
 TreeObservation = GlobalObsForRailEnv()
 
-env = RailEnv(  width= widht_example_1,
-				height= height_example_1,
+env = RailEnv(  width= widht,
+				height= height,
 				rail_generator = rail_custom,
 				schedule_generator=schedule_generator_custom,
 				number_of_agents= num_of_agents,
@@ -109,26 +123,6 @@ class RandomAgent:
 
 	def act(self, state):
 		return RailEnvActions.MOVE_FORWARD
-
-	def act_scheduled(self, step, actions_scheduled):
-		"""
-
-		:param state: input is the observation of the agent
-		:return: returns an action
-		"""
-
-		############################################################################################
-		############################################################################################
-		###############              HERE DEFINE WHAT ACTIONS TO USE                 ###############
-		############################################################################################
-		############################################################################################
-
-		#return(RailEnvActions.MOVE_FORWARD) # DEBUG, only move forward action for now
-		if not interruption:
-			#print(actions_scheduled[0])
-			return actions_scheduled[step]
-		else:
-			return np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
 
 	def step(self, memories):
 		"""
@@ -267,7 +261,7 @@ score = 0
 frame_step = 0
 
 # How many episodes
-n_trials = 10
+n_trials = 3
 
 os.makedirs("tmp/frames", exist_ok=True)
 
@@ -283,12 +277,26 @@ for trials in range(1, n_trials + 1):
 	# See training navigation example in the baseline repository
 
 	score = 0
-	# Run episode
-	for step in range(500):
+	# Run episode (one day long)
+	for step in range(1440):
+
+	############################################################################################
+	############################################################################################
+	###############              HERE DEFINE WHAT ACTIONS TO USE                 ###############
+	############################################################################################
+	############################################################################################
+
 		# Chose an action for each agent in the environment
+		# If not interruption action to do are stored in a matrix
+		#       - each row of the matrix is a train
+		#       - each column represent the action the train has to do at each time instant
 		for a in range(env.get_num_agents()):
-			action = controller.act_scheduled(step, actions_scheduled)
-			action_dict.update({a: action})
+			if step >= timetable[a][1][0]:
+				if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+					action = actions_scheduled[a][step - timetable[a][1][0]]
+				else:
+					action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, RailEnvActions.STOP_MOVING])
+				action_dict.update({a: action})
 		# Environment step which returns the observations for all agents, their corresponding
 		# reward and whether their are done
 		next_obs, all_rewards, done, _ = env.step(action_dict)
@@ -303,83 +311,4 @@ for trials in range(1, n_trials + 1):
 			break
 	print('Episode Nr. {}\t Score = {}'.format(trials, score))
 
-
-"""
-class RandomAgent:
-
-	def __init__(self, state_size, action_size):
-		self.state_size = state_size
-		self.action_size = action_size
-
-	def act(self, state):
-		"""
-"""
-		:param state: input is the observation of the agent
-		:return: returns an action
-		"""
-"""
-		return np.random.choice(np.arange(self.action_size))
-	def step(self, memories):
-		"""
-"""
-		Step function to improve agent by adjusting policy given the observations
-
-		:param memories: SARS Tuple to be
-		:return:
-		"""
-"""
-		return
-
-	def save(self, filename):
-		# Store the current policy
-		return
-
-	def load(self, filename):
-		# Load a policy
-		return
-
-
-# Initialize the agent with the parameters corresponding to the environment and observation_builder
-agent = RandomAgent(256, 5)
-n_trials = 100
-
-# Empty dictionary for all agent action
-action_dict = dict()
-print("Starting Training...")
-
-for trials in range(1, n_trials + 1):
-
-	# Reset environment and get initial observations for all agents
-	obs, info = env.reset()
-	for idx in range(env.get_num_agents()):
-		tmp_agent = env.agents[idx]
-		tmp_agent.speed_data["speed"] = 1 / (idx + 1)
-	env_renderer.reset()
-	# Here you can also further enhance the provided observation by means of normalization
-	# See training navigation example in the baseline repository
-
-	score = 0
-	# Run episode
-	for step in range(500):
-		# Chose an action for each agent in the environment
-		for a in range(env.get_num_agents()):
-			action = agent.act(obs[a])
-			action_dict.update({a: action})
-		# Environment step which returns the observations for all agents, their corresponding
-		# reward and whether their are done
-		next_obs, all_rewards, done, _ = env.step(action_dict)
-		env_renderer.render_env(show=True, show_observations=True, show_predictions=False)
-
-		# Update replay buffer and train agent
-		for a in range(env.get_num_agents()):
-			agent.step((obs[a], action_dict[a], all_rewards[a], next_obs[a], done[a]))
-			score += all_rewards[a]
-		obs = next_obs.copy()
-		if done['__all__']:
-			break
-	print('Episode Nr. {}\t Score = {}'.format(trials, score))
-
-# uncomment to keep the renderer open
-input("Press Enter to continue...")
-"""
 
