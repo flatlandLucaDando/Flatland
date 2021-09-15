@@ -13,6 +13,8 @@ from flatland.core.grid.grid_utils import Vec2dOperations as Vec2d
 from flatland.core.grid.rail_env_grid import RailEnvTransitions
 from flatland.core.transitions import Transitions
 from flatland.utils.ordered_set import OrderedSet
+from flatland.core.grid.grid4 import Grid4TransitionsEnum
+from structures_rail import right_rails, left_rails, up_rails, down_rails
 
 
 # TODO are these general classes or for grid4 only?
@@ -641,53 +643,154 @@ class GridTransitionMap(TransitionMap):
     def check_transition_is_possible(self, previous_position, current_position, new_position):
         # Finding direction of the agent
 
-        if previous_position != None:
-            difference_y = previous_position[0] - current_position [0]
-            difference_x = previous_position[1] - current_position [1]
-            if difference_y == 1:
-                direction = 0
-            if difference_x ==  -1:
-                direction = 1
-            if difference_y == -1:
-                direction = 2
-            if difference_x == 1:
-                direction = 3
+        new_dir = get_direction(current_position, new_position)
+        if previous_position is not None:
+            current_dir = get_direction(previous_position, current_position)
         else:
-            difference_y = current_position[0] - new_position [0]
-            difference_x = current_position[1] - new_position [1]
-            if difference_y == 1:
-                direction = 0
-            if difference_x ==  -1:
-                direction = 1
-            if difference_y == -1:
-                direction = 2
-            if difference_x == 1:
-                direction = 3
+            current_dir = new_dir
 
-
-        #print(direction, current_position, new_position)
         # checking the possible transitions
         # EXAMPLE OF RESULT OF THE FUNCTION
         # 
         #  [0, 1, 1, 0]   
         #   N  E  S  W
-        transitions = self.get_transitions(current_position[0], current_position[1], direction)
-        #print(previous_position,current_position, new_position)
+        transitions = self.get_transitions(current_position[0], current_position[1], current_dir)
+        #print(previous_position, current_position, transitions,)
+        
         # Transition to NORD valid?
         if (new_position[0] == (current_position[0] - 1)) and (transitions[0] == 1):
+            if new_dir  == Grid4TransitionsEnum.NORTH:
+                if new_position in down_rails:
+                    return False
             return True
         # Transition to EAST valid?
         if (new_position[1] == (current_position[1] + 1)) and (transitions[1] == 1):
+            if new_dir  == Grid4TransitionsEnum.EAST:
+                if new_position in left_rails:
+                    return False
             return True
         # Transition to SUD valid?
         if (new_position[0] == (current_position[0] + 1)) and (transitions[2] == 1):
+            if new_dir  == Grid4TransitionsEnum.SOUTH:
+                if new_position in up_rails:
+                    return False
             return True
         # Transition to WEST valid?
         if (new_position[1] == (current_position[1] - 1)) and (transitions[3] == 1):
+            if new_dir  == Grid4TransitionsEnum.WEST:
+                if new_position in right_rails:
+                    return False
             return True
         else:
-            return False
+            return False 
+        #print('**************************')
+        #print(direction, previous_position, current_position, new_position)
 
+# DOESNT NEED THIS FUNCTION 
+# MAYBE IN FUTURE THIS WILL BE NEEDED SO DONT DELETE FOR NOW
+'''
+    def check_direction_of_railroad(self, previous_position, current_position, new_position):
+
+        # Calculate the dimension of the grid
+        dimension = self.grid.shape
+        height = dimension[1]
+        width = dimension[0]
+
+        new_dir = get_direction(current_position, new_position)
+        if previous_position is not None:
+            current_dir = get_direction(previous_position, current_position)
+        else:
+            current_dir = new_dir
+
+
+        if current_position in right_rails:
+            if direction == 1:
+                return True
+            else: 
+                return False
+        if current_position in left_rails:
+            if direction == 3:
+                return True 
+            else:
+                return False
+
+        
+        # Return True in case the train has no-railroad on its left, 
+        # in case there is railroad in all the directions return True
+        if current_position[0] + 1 < width and current_position[0] - 1 >= 0 \
+            and current_position[1] - 1 >= 0 and current_position[1] + 1 < height:
+            # If one rail it's ok
+            if (self.grid[current_position[0], current_position[1] + 1] == 0 \
+                and self.grid[current_position[0], current_position[1] - 1] == 0) \
+                or (self.grid[current_position[0] + 1, current_position[1]] == 0 \
+                and self.grid[current_position[0] - 1, current_position[1]] == 0):
+                return True
+            # Nord direction Grid4TransitionsEnum.NORTH
+            if current_dir == Grid4TransitionsEnum.NORTH:
+                # The train has to be free at its right
+                if self.grid[current_position[0], current_position[1] - 1] == 0:
+                    return True
+                elif self.grid[current_position[0], current_position[1] - 1] != 0 \
+                and self.grid[current_position[0] + 1, current_position[1]] != 0 \
+                and self.grid[current_position[0] - 1, current_position[1]] != 0 \
+                and self.grid[current_position[0], current_position[1] - 1] != 0:
+                    return True
+            # East direction
+            if current_dir == Grid4TransitionsEnum.EAST:
+                if self.grid[current_position[0] - 1, current_position[1]] == 0:
+                    return True
+                elif self.grid[current_position[0], current_position[1] + 1] != 0 \
+                and self.grid[current_position[0] + 1, current_position[1]] != 0 \
+                and self.grid[current_position[0] - 1, current_position[1]] != 0 \
+                and self.grid[current_position[0], current_position[1] - 1] != 0:
+                    return True
+            # Sud direction
+            if current_dir == Grid4TransitionsEnum.SOUTH: 
+                if self.grid[current_position[0], current_position[1] + 1] == 0:
+                    return True
+                elif self.grid[current_position[0], current_position[1] + 1] != 0 \
+                and self.grid[current_position[0] + 1, current_position[1]] != 0 \
+                and self.grid[current_position[0] - 1, current_position[1]] != 0 \
+                and self.grid[current_position[0], current_position[1] - 1] != 0:
+                    return True
+            # Nord direction
+            if current_dir == Grid4TransitionsEnum.WEST:
+                if self.grid[current_position[0] + 1, current_position[1]] == 0:
+                    return True
+                elif self.grid[current_position[0], current_position[1] + 1] != 0 \
+                and self.grid[current_position[0] + 1, current_position[1]] != 0 \
+                and self.grid[current_position[0] - 1, current_position[1]] != 0 \
+                and self.grid[current_position[0], current_position[1] - 1] != 0:
+                    return True
+
+
+
+            if current_position in rails_of_stations:
+                if new_dir == Grid4TransitionsEnum.NORTH:
+                    if self.grid[new_position[0], new_position[1] - 1] == 0 \
+                    or self.grid[new_position[0], new_position[1] + 1] == 0:
+                        return True
+                if new_dir == Grid4TransitionsEnum.WEST:
+                    print(new_dir, new_position, [new_position[0] + 1, new_position[1]], self.grid[new_position[0] + 1, new_position[1]])
+                    if self.grid[new_position[0] + 1, new_position[1]] == 0:
+                        return True
+
+            if new_dir == Grid4TransitionsEnum.NORTH:
+                if self.grid[new_position[0], new_position[1] - 1] == 0 \
+                 or self.grid[new_position[0], new_position[1] + 1] == 0:
+                 return True
+            if new_dir == Grid4TransitionsEnum.WEST:
+                if self.grid[new_position[0] + 1, new_position[1]] == 0:
+                    return True
+                else:
+                    return False
+
+            else:
+                return False
+        else: 
+            return True
+
+'''
 
 def mirror(dir):
     return (dir + 2) % 4
