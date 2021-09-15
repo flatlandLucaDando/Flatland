@@ -15,7 +15,7 @@ from flatland.envs import persistence
 # This is to test if the timetable is valid or not
 from flatland.core.grid.grid4_astar import a_star
 
-from structures import railway_example_1, stations, timetable_example_1
+from structures import railway_example, stations, timetable_example, av_line
 
 AgentPosition = Tuple[int, int]
 ScheduleGenerator = Callable[[GridTransitionMap, int, Optional[Any], Optional[int]], Schedule]
@@ -72,15 +72,15 @@ def control_timetable(timetable, railway_topology):
         for stations in range (len(timetable[trains][1]) - 1):   
             if (timetable[trains][1][stations] - timetable[trains][1][stations + 1]) >= 0:
                 print('===================================================================================================================================')
-                print('Attenction!!! The agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
+                print('Attention!!! The agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
                 print('The time to reach the successive station SHOULD BE > 0, pay attenction to the timetable')
                 # Function that check if the time to reach a station defined by the timetable are possible or not,
                 # Return the time minimum time to reach two different stations depending on the distance and on the line type (high velocity, regional...)
-            time_to_next_station = time_to_reach_next_station(timetable[trains][0][stations], timetable[trains][0][stations + 1], railway_topology)
+            time_to_next_station = time_to_reach_next_station(timetable[trains][0][stations], timetable[trains][0][stations + 1], railway_topology, timetable_example, trains)
             # Control if the time to reach the next station is possible (considering maximum velocities of lines and the distances between two stations)
             if time_to_next_station > (timetable[trains][1][stations+1]- timetable[trains][1][stations]):
                 print('===================================================================================================================================')
-                print('Attenction!!! Agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
+                print('Attention!!! Agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
                 print('The time to reach the next station SHOULD BE HIGHER. The minimum time to reach the station should be:', time_to_next_station)
     return
 
@@ -91,68 +91,138 @@ def action_to_do(timetable, railway_topology):
     # Calculate the path for all the trains
     for train_i in range (len(timetable)):
         path_result.append(a_star(railway_topology,timetable[train_i][0][0],timetable[train_i][0][-1]))
+
+    # DEBUG
+    for train_i in range(len(timetable)):
+        print()
+        print(path_result[train_i])
+        print()
+        
     # Calculate the actions that have to be done
     actions_to_do = []
     for train_i in range (len(timetable)):
-        for step in range (len(path_result[train_i]) - 1):
+        # Flag that tells me that the next step is particular
+        next = False
+        # Each train occupy a row in the action_to_do matrix 
+        actions_single_train = []
+        for step in range (len(path_result[train_i])):
             # Calculate the direction of the trains at each step
-            difference_y = path_result[train_i][step][0] - path_result[train_i][step + 1][0]
-            difference_x = path_result[train_i][step][1] - path_result[train_i][step + 1][1]
-            if difference_y == 1:
-                direction = 0
-            if difference_x ==  -1:
-                direction = 1
-            if difference_y == -1:
-                direction = 2
-            if difference_x == 1:
-                direction = 3 
             if step == 0:
-                actions_to_do.append(RailEnvActions.MOVE_FORWARD)
-                prev_direction = direction
+                difference_y = path_result[train_i][step][0] - path_result[train_i][step + 1][0]
+                difference_x = path_result[train_i][step][1] - path_result[train_i][step + 1][1]
+                if difference_y == 1:
+                    direction = 0
+                if difference_x ==  -1:
+                    direction = 1
+                if difference_y == -1:
+                    direction = 2
+                if difference_x == 1:
+                    direction = 3 
             else:
-                if prev_direction == direction:
-                    actions_to_do.append(RailEnvActions.MOVE_FORWARD)
+                difference_y = path_result[train_i][step - 1][0] - path_result[train_i][step][0]
+                difference_x = path_result[train_i][step - 1][1] - path_result[train_i][step][1]
+                if difference_y == 1:
+                    direction = 0
+                if difference_x ==  -1:
+                    direction = 1
+                if difference_y == -1:
+                    direction = 2
+                if difference_x == 1:
+                    direction = 3 
+            # Variable to count the number of possible path at each cell, is an int with the number of possible path
+            if not step == 0:
+                # Specific case, a train is at the boarder of two different lines, 
+                # if this appen I have to consider the previous transition at the next time stamp due to the fact the velocity changes
+                if next:
+                    multiple_path = railway_topology.get_transitions(path_result[train_i][step-1][0],path_result[train_i][step-1][1],prev_direction).count(1)
+                    next = False
+                elif (path_result[train_i][step] in av_line) and not (path_result[train_i][step - 1] in av_line):
+                    multiple_path = railway_topology.get_transitions(path_result[train_i][step][0],path_result[train_i][step][1],prev_direction).count(1)
+                    next = True
                 else:
-                    actions_to_do.append(RailEnvActions.MOVE_RIGHT)
-                    #print(railway_topology.grid[path_result[train_i][step]], path_result[train_i][step])
-    #print(actions_to_do)
+                    multiple_path = railway_topology.get_transitions(path_result[train_i][step-1][0],path_result[train_i][step-1][1],prev_direction).count(1)
+            # Starting with a move forward direction for the train
+            if step == 0:
+                #actions_single_train.append(RailEnvActions.MOVE_FORWARD)
+                prev_direction = direction
+            # If I'm not at the start of the train 
+            else:
+                # The direction doesn't change
+                if direction - prev_direction == 0:
+                    # If I'm in an hig velocity line velocity is define only by the type of train
+                    if path_result[train_i][step - 1] in av_line:
+                        velocity = timetable[train_i][2]
+                    # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
+                    else:
+                        velocity = min(timetable[train_i][2], 1/2)
+                    for i in range(int(pow(velocity, -1))):
+                        #print('Test per capire come varia',i, 'Treno numero', train_i)
+                        actions_single_train.append(RailEnvActions.MOVE_FORWARD)
+                    prev_direction = direction
+                # I have to move to left 
+                # and I have more then one possible path, so I go left at the deviation
+                # Depending on the direction of march the results can be -1 or -3
+                elif ((direction - prev_direction == -1) and (multiple_path > 1)) or ((direction - prev_direction == +3)):
+                    # If I'm in an hig velocity line velocity is define only by the type of train
+                    if path_result[train_i][step - 1] in av_line:
+                        velocity = timetable[train_i][2]
+                    # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
+                    else:
+                        velocity = min(timetable[train_i][2], 1/2)
+                    for i in range(int(pow(velocity, -1))):
+                        actions_single_train.append(RailEnvActions.MOVE_LEFT)
+                    prev_direction = direction
+                # I have to move right 
+                # and I have more then one possible path, so I go left at the deviation 
+                # Depending on the direction of march the results can be +1 or -3
+                elif ((direction - prev_direction == 1) and (multiple_path > 1)) or ((direction - prev_direction == -3) ):
+                    # If I'm in an hig velocity line velocity is define only by the type of train
+                    if path_result[train_i][step - 1] in av_line:
+                        velocity = timetable[train_i][2]
+                    # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
+                    else:
+                        velocity = min(timetable[train_i][2], 1/2)
+                    for i in range(int(pow(velocity, -1))):
+                        actions_single_train.append(RailEnvActions.MOVE_RIGHT)
+                    prev_direction = direction
+                else:
+                    if path_result[train_i][step - 1] in av_line:
+                        velocity = timetable[train_i][2]
+                    else:
+                        velocity = min(timetable[train_i][2], 1/2)
+                    for i in range(int(pow(velocity, -1))):
+                        actions_single_train.append(RailEnvActions.MOVE_FORWARD)
+                    prev_direction = direction
+        #print(len(actions_single_train))
+        actions_to_do.append(actions_single_train)
     return actions_to_do
 
 
 
 # Calculate the time to reach the stations to understand if timetable is right
-def time_to_reach_next_station(departure_station_position, arrival_station_position, railway_topology):
+def time_to_reach_next_station(departure_station_position, arrival_station_position, railway_topology, schedule, train_number):
     # First thing check the distance between two stations 
     result = a_star(railway_topology, departure_station_position, arrival_station_position)
+    # Maximum velocity a train can achieve
+    train_velocity = schedule[train_number][2]
 
-    '''
-    print('Il risultato di astar è', result)
-    print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-    print(railway_topology.grid[8, 25])
-    print(railway_topology.get_transitions(21,49,1))
-    #print(railway_topology.check_transition_is_possible((8,24),(9,24)))
-    print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-    '''
+    lenght_path = len(result)  # distance between stations
 
-    distance = len(result)  # distance between stationsù
+    # Array when I put at each step the time needed to make the path
+    # The total time is the sum of the numbers
+    time_array = []
+    # Check the at each step which train i am and which line im in
+    for step in range(lenght_path):
+        if (result[step]) in av_line:
+            time_array.append(pow(train_velocity,-1))
+        else:
+            time_array.append(pow(min(train_velocity, 1/2), -1))
+    time_needed = sum(time_array)
 
-    high_velocity_stations = []    
-    for station in range(len(stations)):
-        if stations[station][1] == 1.:
-            high_velocity_stations.append(station) 
+    #print((time_needed + int(time_needed/10))) DEBUG
 
-    # Im on a high velocity line? The max velocity is 1
-    if (departure_station_position == stations[high_velocity_stations[0]][0] or departure_station_position == stations[high_velocity_stations[1]][0] or \
-        departure_station_position == stations[high_velocity_stations[2]][0]) \
-        and (arrival_station_position == stations[high_velocity_stations[0]][0] or arrival_station_position == stations[high_velocity_stations[1]][0] or \
-            arrival_station_position == stations[high_velocity_stations[2]][0]):
-        return distance 
-    # I'm on a regional line? The max velocity is 1/2 so the time is the double of the distance. 
-    # If I'm half regional and half high velocity line I follow the slowest line
-    else:
-        return (distance * 2)
-
-    return False    
+    # Adding to the time a 10% to face with problems in case it's neaded
+    return (time_needed + int(time_needed/10))
 
 
 class BaseSchedGen(object):
@@ -201,9 +271,9 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         agents_direction = []
 
         # Define the agent positions
-        for agent_i in range (len(timetable_example_1)):
-            agents_position.append(timetable_example_1[agent_i][0][0])
-            agents_target.append(timetable_example_1[agent_i][0][-1])
+        for agent_i in range (len(timetable_example)):
+            agents_position.append(timetable_example[agent_i][0][0])
+            agents_target.append(timetable_example[agent_i][0][-1])
 
 
         # Define the direction of the trains based on the rail they occupy
@@ -211,7 +281,7 @@ def custom_schedule_generator(speed_ratio_map: Mapping[float, float] = None, see
         # Output --> an array with the directions of the trains
         # DIRECTIONS: 0 = UP, 1 = RIGHT, 2 = DOWN, 3 = LEFT
 
-        agents_direction = check_rail_road_direction(rail, agents_position)
+        agents_direction = check_rail_road_direction(rail, timetable_example)
 
 
         _runtime_seed = seed + num_resets
@@ -403,7 +473,7 @@ class RandomSchedGen(BaseSchedGen):
                   np_random: RandomState = None) -> Schedule:
         _runtime_seed = self.seed + num_resets
 
-        print(num_agents)
+        #print(num_agents)
 
         valid_positions = []
         for r in range(rail.height):
@@ -536,28 +606,28 @@ def schedule_from_file(filename, load_from_package=None) -> ScheduleGenerator:
 
 
 
-def check_rail_road_direction(rail: GridTransitionMap, trains_position):
+def check_rail_road_direction(rail: GridTransitionMap, timetable):
     # To establish the direction of trains in the railroas I define a simple law, as for the cars, each trains has to 
     # go the direction that let them to have the right free
 
-    agents_direction = [0]*len(trains_position)
+    agents_direction = [0]*len(timetable)
+    path_result = [0]*len(timetable)
 
     #print(rail.grid[7 ,13],rail.grid[7 ,12],rail.grid[7 ,11],rail.grid[7 ,10],rail.grid[7 ,9],rail.grid[7 ,8],rail.grid[7 ,7],rail.grid[7 ,6], rail.grid[7 ,5])
 
-    for i in range (len(trains_position)):
+    for i in range (len(timetable)):
+        # Consider the a_star result to calculate the direction
+        path_result[i] = (a_star(rail,timetable[i][0][0],timetable[i][0][-1]))
 
-        ''' DEBUG TO STUDY THE POSITION OF THE TRAIN
-        rail.grid[trains_position[i][0] + 1,trains_position[i][1]] ---> DOWN  | if == 0  direction = right (1)
-        rail.grid[trains_position[i][0] - 1,trains_position[i][1]] ---> UP    | if == 0  direction = left  (3)
-        rail.grid[trains_position[i][0],trains_position[i][1] + 1] ---> RIGHT | if == 0  direction = up    (0)
-        rail.grid[trains_position[i][0],trains_position[i][1] - 1] ---> LEFT  | if == 0  direction = down  (2)
-        '''
-        if (rail.grid[trains_position[i][0] + 1,trains_position[i][1]]) == 0:
-            agents_direction[i] = 1
-        elif (rail.grid[trains_position[i][0] - 1,trains_position[i][1]]) == 0:
-            agents_direction[i] = 3
-        elif (rail.grid[trains_position[i][0],trains_position[i][1] + 1]) == 0:
+        difference_x = path_result[i][0][1] - path_result[i][1][1]
+        difference_y = path_result[i][0][0] - path_result[i][1][0]
+        if difference_y == 1:
             agents_direction[i] = 0
-        elif (rail.grid[trains_position[i][0],trains_position[i][1] - 1]) == 0:
+        if difference_x ==  -1:
+            agents_direction[i] = 1
+        if difference_y == -1:
             agents_direction[i] = 2
+        if difference_x == 1:
+            agents_direction[i] = 3
+
     return agents_direction
