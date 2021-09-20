@@ -29,7 +29,7 @@ from flatland.envs import agent_chains as ac
 from flatland.envs.observations import GlobalObsForRailEnv
 from gym.utils import seeding
 
-from structures import speed_ration_map_lines, av_line
+from structures import  av_line
 
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
@@ -75,6 +75,7 @@ class RailEnvActions(IntEnum):
     MOVE_FORWARD = 2
     MOVE_RIGHT = 3
     STOP_MOVING = 4
+    REVERSE = 5
 
     @staticmethod
     def to_char(a: int):
@@ -84,6 +85,7 @@ class RailEnvActions(IntEnum):
             2: 'F',
             3: 'R',
             4: 'S',
+            5: 'G',
         }[a]
 
 
@@ -664,7 +666,7 @@ class RailEnv(Environment):
                 info_dict["malfunction"][i_agent] = agent.malfunction_data['malfunction']
                 # Check the velocities the agents must have depending on the line they are on the type of train and on the time needed to reach in time 
                 # the next station
-                velocities = self.check_speed(optionals['agents_hints'], speed_ration_map_lines, 1)   # TODO variare velocità in base alla stazione da raggiungere
+                velocities = self.check_speed(optionals['agents_hints'], 1)   # TODO variare velocità in base alla stazione da raggiungere
 
                 agent.speed_data['speed'] = velocities[i_agent]
                 info_dict["speed"][i_agent] = velocities[i_agent]
@@ -1171,6 +1173,10 @@ class RailEnv(Environment):
             if num_transitions <= 1:
                 transition_valid = False
 
+        # TODO control when this is not possible
+        elif action == RailEnvActions.REVERSE:
+            new_direction = agent.direction +2
+
         new_direction %= 4
 
         if action == RailEnvActions.MOVE_FORWARD and num_transitions == 1:
@@ -1277,10 +1283,7 @@ class RailEnv(Environment):
         return(0)
 
         # TODO Check the velocity depending on the timetable...
-    def check_speed(self, agents_hints, lines_velocities, train_type):
-
-        # Velocity depending on the line
-        velocity = lines_velocities
+    def check_speed(self, agents_hints, train_type):
 
         # Velocity depending on the train type and on the line (Take the minimum between the two possible velocities)
         train_velocities = [0]*self.number_of_agents
@@ -1298,10 +1301,10 @@ class RailEnv(Environment):
 
                 # High velocity line case
                 if (agent.position in av_line):  
-                    train_velocities[i_agent] = min(velocity[0], agents_hints['timetable'][i_agent][2])                
+                    train_velocities[i_agent] = min(1, agents_hints['timetable'][i_agent][2])                
                 # Regional line case
                 else:
-                    train_velocities[i_agent] = min(velocity[1], agents_hints['timetable'][i_agent][2])
+                    train_velocities[i_agent] = min(1/2, agents_hints['timetable'][i_agent][2])
 
         return train_velocities
 
