@@ -84,6 +84,8 @@ def control_timetable(timetable, railway_topology):
                 print('The time to reach the next station SHOULD BE HIGHER. The minimum time to reach the station should be:', time_to_next_station)
     return
 
+# TODO make action to do for each station!!!
+
 # Define the scheduled actions the agents have to do
 def action_to_do(timetable, railway_topology):
     # Path to do to arrive to the right station
