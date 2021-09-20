@@ -77,6 +77,8 @@ schedule_generator_custom = custom_schedule_generator()
 
 actions_scheduled = action_to_do(timetable, transition_map_example_4)
 
+print(actions_scheduled[0])
+
 # DEBUG
 for i in range(len(actions_scheduled)):
 	print()
@@ -282,7 +284,7 @@ for trials in range(1, n_trials + 1):
 
 	############################################################################################
 	############################################################################################
-	###############              HERE DEFINE WHAT ACTIONS TO USE                 ###############
+	###############              HERE DEFINE WHICH ACTIONS TO USE                 ##############
 	############################################################################################
 	############################################################################################
 
