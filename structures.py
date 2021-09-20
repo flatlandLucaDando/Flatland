@@ -2,25 +2,119 @@ import numpy as np
 from flatland.core.grid.grid4_astar import a_star
 from flatland.core.grid.rail_env_grid import RailEnvTransitions
 from flatland.core.transition_map import GridTransitionMap
+from enum import Enum
+import graphviz
 
 
-example_num = 4 
+example_num = 2
 
+# TODO calculate the av_rails, in order to distinguish them
+# TODO calculate the right,left,up,down rails, in order to distinguish them
+# TODO understad if the velocities are realistic or not
+
+
+# Type of a convoy, can be high velocity or regional
+# The velocity are given by default depending on the type of convoy, 360 for HV, 180 for IC, 120 for Regional
+class Type_of_convoy(Enum):
+	HIGH_VELOCITY = 1
+	INTERCITY = 2
+	REGIONAL = 3
+
+# A connection can be: High velocity or normal
+# The velocity are given by default depending on the type of connection, 360 for HV and 120 for normal
+class Connection_type(Enum):
+	HIGH_VELOCITY_RAIL = 1
+	NORMAL_RAIL = 2
 
 # A convoy is a locomotive + wagons.
 class Convoy:
 
-	def __init__(self, identifier, train_type, schedule):
+	def __init__(self, identifier, train_type, schedule = [], maximum_velocity: int = 1/2):
+
 		# identifier of the train
 		self.id = identifier
 		# type of train (High velocity, Intercity, regional)
 		self.train_type = train_type
+		# Maximum velocity possible for the train
+		self.maximum_velocity = maximum_velocity
 		# schedule of the train
-		self.schedule = schedule
+		self.schedule = []
+
+		if train_type == Type_of_convoy.HIGH_VELOCITY:
+			maximum_velocity = 1
+		if train_type == Type_of_convoy.INTERCITY:
+			maximum_velocity = 1/2
+		if train_type == Type_of_convoy.REGIONAL:
+			maximum_velocity = 1/3
+
+	def add_train_run(self, train_run):
+		self.schedule.append(train_run)
+
+	def calculate_schedule(self, railway_topology):
+		# The timetable that should be returned
+		timetable = []
+		# For each train run defined
+		for num_of_runs in range(len(self.schedule)):
+			# The single train run
+			single_train_run = []
+			# The number of station to pass
+			num_of_stations = len(self.schedule[num_of_runs].line_id.stations)
+			# The station to stop
+			stations_to_stop_position = []
+			# Direction not inverted?
+			if not self.schedule[num_of_runs].inverse_train_direction:
+				for i in range(num_of_stations):
+					# append the station position in the right order
+					stations_to_stop_position.append(self.schedule[num_of_runs].line_id.stations[i].position)
+			# Direction inverdet?
+			else:
+				for i in range(num_of_stations):
+					# append the station position in inverted order
+					stations_to_stop_position.append(self.schedule[num_of_runs].line_id.stations[num_of_stations - 1 - i].position)
+			# Adding the starting time
+			single_train_run.append(self.schedule[num_of_runs].starting_time)
+
+			for stations in range(num_of_stations -1):
+				departure_station_position = stations_to_stop_position[stations]
+				arrival_station_position = stations_to_stop_position[stations + 1]
+				# First thing check the distance between two stations
+				result = a_star(railway_topology, departure_station_position, arrival_station_position)
+				# Maximum velocity a train can achieve
+				train_velocity = self.maximum_velocity 
+
+				lenght_path = len(result)  # distance between stations
+
+				# Array when I put at each step the time needed to make the path
+				# The total time is the sum of the numbers
+				time_array = []
+
+				# Check the at each step which train i am and which line im in
+				# Train should be in the middle of two line type
+				for step in range(lenght_path):
+					if (result[step]) in av_line:
+						time_array.append(pow(train_velocity,-1))
+					else:
+						time_array.append(pow(min(train_velocity, 1/2), -1))
+				time_needed = sum(time_array)
+				# Adding to the time a 10% to face with problems in case it's neaded
+				time_needed = time_needed + int(time_needed/10)
+
+				# Adding the precedence time 
+				if stations != (num_of_stations - 1):
+					# sum of time needed, the precedence time and the waiting time at the station
+					single_train_run.append(int(time_needed + single_train_run[stations] + self.schedule[num_of_runs].line_id.stations[stations].min_wait_time[0]))
+
+			timetable.append(single_train_run)
+
+		return timetable
+
 
 	# Discover the starting run of a certain run
 	def starting_time(self, run_number):
 		return self.schedule[run_number][0]
+
+	def velocity_conversion(self):
+		print(self.maximum_velocity * 360)
 
 	def schedule_verification(self, schedule, num_trains_run):
 		if type(schedule) == list:
@@ -42,19 +136,10 @@ class Convoy:
 			print('A schedule should comprend different stations')
 		return True
 
-# Type of a convoy, can be high velocity or regional
-class Type_of_convoy:
-
-	def __init__(self, type_name, max_speed):
-		# High velocity, Intercity, regional
-		self.type_name = type_name
-		# Maximum possible speed for the train based on its type
-		self.max_speed = max_speed
-
 # A physical connection between two stations
 class Rail_connection:
 
-	def __init__(self, identifier, station_a, station_b, rail_connection_type, additional_runtime_percent):
+	def __init__(self, identifier, station_a, station_b, rail_connection_type, additional_runtime_percent, max_speed_usable: int = 1/2):
 		# Each rail section have an identifier
 		self.id = identifier
 		# Station A and B are the two connected stations
@@ -62,25 +147,19 @@ class Rail_connection:
 		self.station_b = station_b
 		# A connection can be: High velocity or normal
 		self.rail_connection_type = rail_connection_type
+		# Maximum speed usable in the rails
+		self.max_speed_usable = max_speed_usable
 		# Additional Runtime Percent is the percent [0-1] of the min run time that is added to the min run time, if the train is on schedule.
 		# In general, he actual run time is computed as min run time + max(0, (min run time*additionalRuntimePercent)-actual_delay).
 		self.additional_runtime_percent = additional_runtime_percent
 
-	def calculate_runtime(self, station_a, station_b, transition_map):
-		time_to_run = 0
-		return time_to_run
+		if rail_connection_type == Connection_type.HIGH_VELOCITY_RAIL:
+			self.max_speed_usable = 1
+		if rail_connection_type == Connection_type.NORMAL_RAIL:
+			self.max_speed_usable = 1 / 2
 
 	def calculate_rails(self, station_a, station_b, transition_map):
 		return True
-
-# A connection can be: High velocity or normal
-class Connection_type:
-
-	def __init__(self, name, max_speed_possible):
-		# High velocity or normal
-		self.name = name
-		# max_speed_possible is the velocity the train can go depending in the type of connection
-		self.max_speed_possible = max_speed_possible
 
 # Station
 class Station:
@@ -104,9 +183,7 @@ class Station:
 # The train run consider each intermediate station the train has to pass between the two "principal" stations
 class Train_run:
 
-	def __init__(self, identifier, line_id, starting_time, from_depot: bool, to_depot: bool):
-		# each train_run has an identifier
-		self.identifier = identifier
+	def __init__(self, line_id, starting_time, from_depot: bool = False, to_depot: bool = False, inverse_train_direction: bool = False):
 		# Id of the line of the run
 		self.line_id = line_id
 		# Starting time of the run
@@ -114,11 +191,14 @@ class Train_run:
 		# FromDepot indicates whether this run starts from a depot. Similar for ToDepot.
 		self.from_depot = from_depot
 		self.to_depot = to_depot
+		# If inverse line direction 
+		self.inverse_train_direction = inverse_train_direction
+
 
 # A line is considered from a city to another, tipically joining several cities
 class Line:
 
-	def __init__(self, identifier, type_line, stations, stops, direction):
+	def __init__(self, identifier, type_line, stations, stops):
 		# ID of the line
 		self.identifier = identifier
 		# type of line (High velocity or regional)
@@ -128,8 +208,6 @@ class Line:
 		# Stops are stations where the train have to stop
 		# Is an array with 0 where not stop and 1 where train stops
 		self.stops = stops
-		# Direction of the line (e.g. MILANO - ROMA ---> direction 1, ROMA - MILANO ----> direction -1)
-		self.direction = direction
 
 		if type(stations) == int or type(stops) == int:
 			print('The stations of a line should be more than one, and the dimension of the stops should be the same of the stations')
@@ -142,10 +220,17 @@ class Line:
 		self.direction = self.direction * -1
 
 
-def single_train_run_generator(convoy, starting_time_of_the_run, stations_to_stop, railway_topology):
+# OLD generation train run 
+'''
+def single_train_run_generator(convoy_max_speed, starting_time_of_the_run, stations_to_stop, 
+	railway_topology, inverse_train_direction: bool = False):
 	stations_to_stop_position = []
-	for i in range(len(stations_to_stop)):
-		stations_to_stop_position.append(stations_to_stop[i].position)
+	if not inverse_train_direction:
+		for i in range(len(stations_to_stop)):
+			stations_to_stop_position.append(stations_to_stop[i].position)
+	else:
+		for i in range(len(stations_to_stop)):
+			stations_to_stop_position.append(stations_to_stop[len(stations_to_stop) - 1 - i].position)
 	schedule = []
 	schedule.append(starting_time_of_the_run)
 	for stations in range( len(stations_to_stop) - 1 ):
@@ -154,7 +239,7 @@ def single_train_run_generator(convoy, starting_time_of_the_run, stations_to_sto
 		# First thing check the distance between two stations
 		result = a_star(railway_topology, departure_station_position, arrival_station_position)
 		# Maximum velocity a train can achieve
-		train_velocity = convoy.train_type.max_speed
+		train_velocity = convoy_max_speed
 
 		lenght_path = len(result)  # distance between stations
 
@@ -175,9 +260,10 @@ def single_train_run_generator(convoy, starting_time_of_the_run, stations_to_sto
 
 		# Adding the precedence time 
 		if stations != (len(stations_to_stop) - 1):
-			schedule.append(int(time_needed + schedule[stations] + stations_to_stop[stations].min_wait_time))
+			schedule.append(int(time_needed + schedule[stations] + stations_to_stop[stations].min_wait_time[0]))
 		
 	return schedule
+'''
 
 
 '''
@@ -226,65 +312,52 @@ if example_num == 1:
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
 
-	# Define the type of convoy
-	regional_train = Type_of_convoy('Regional', 1/3)
-	intercity_train = Type_of_convoy('Intercity', 1/2)
-	high_velocity_train = Type_of_convoy('High velocity', 1)
-
-	# Define the type of connection
-	regional = Connection_type(0, 1/2)
-
 	# No high velocity lines, so make a (0,0) position
 	av_line = (0,0)
 
 	# Define the stations
-	station_a = Station('Quarto', (3, 2), 2, 2, 0, 1)
-	station_b = Station('Quinto', (3, 9), 2, 2, 0, 1)
+	quarto_station = Station('Quarto', position = (3, 2), capacity = 2, min_wait_time = [2, 2, 1], 
+		additional_wait_percent = [0.5, 1, 1.5], importance = 80)
+	quinto_station = Station('Quinto', position = (3, 9), capacity = 2, min_wait_time = [2, 2, 1], 
+		additional_wait_percent = [0.5, 1, 1.5], importance = 80)
 
 	# Define the rail connection beetween the two stations
-	connection_a_b = Rail_connection(0, station_a, station_b, regional, 0)
+	connection_quarto_quinto = Rail_connection(identifier = 0, station_a = quarto_station, 
+		station_b = quinto_station, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
 
-	# Define the line
-	line_a_b = Line(0, regional, (station_a, station_b), (1, 1), 1)
+	# Define the lines
+	genova_urbana = Line(identifier = 0, type_line = Connection_type.NORMAL_RAIL, 
+		stations = (quarto_station, quinto_station), stops = (1, 1))
 
 	stations = []
-	stations.append([station_a.position, line_a_b.type_line.max_speed_possible])
-	stations.append([station_b.position, line_a_b.type_line.max_speed_possible])
+	stations.append([quarto_station.position, 0.5])
+	stations.append([quinto_station.position, 0.5])
 
 	# Define the train runs
-	train_run_0 = Train_run(0, 0, 3, True, True)
-	train_run_1 = Train_run(1, 0, 25, True, True)
+	train_run_0 = Train_run(genova_urbana, starting_time = 3, from_depot = True)
+	train_run_1 = Train_run(genova_urbana, starting_time = 20, from_depot = True, inverse_train_direction = True)
 
 	# Define the convoys
-	convoy_0 = Convoy(0, intercity_train, 0)
-	convoy_1 = Convoy(1, intercity_train, 1)
+	R1079_convoy = Convoy( 'R1079', Type_of_convoy.INTERCITY)
+	R1078_convoy = Convoy( 'R1078', Type_of_convoy.INTERCITY)
 
-	schedule_0 = []
+	# Adding the train runs to the convoys
+	R1079_convoy.add_train_run(train_run_0)
+	R1078_convoy.add_train_run(train_run_1)
 
-	schedule_1 = []
+	# Generating the schedules for the two convoys
+	schedule_0 = R1079_convoy.calculate_schedule(railway_topology = rail)
+	schedule_1 = R1078_convoy.calculate_schedule(railway_topology = rail)
 
-	# Calculate the schedule for the first convoy 
-	# for the first run
-	schedule_0.append(single_train_run_generator(convoy_0, train_run_0.starting_time, line_a_b.stations, rail))
-
-	convoy_0.schedule = schedule_0
-
-	# Calculate the schedule for the second convoy
-	# for the first run (inverted)
-	schedule_1.append(single_train_run_generator(convoy_1, train_run_1.starting_time, line_a_b.stations[::-1], rail))
-
-	convoy_1.schedule = schedule_1
 
 	# Timetable has the stations positions, the schedule times, and the velocity
 	timetable_example = []
 
-	timetable_example.append([(station_a.position, station_b.position),schedule_0[0],0.5])
-	timetable_example.append([((station_b.position[0] - 1, station_b.position[1]), (station_a.position[0] - 1, station_a.position[1])),schedule_1[0],0.5])
+	timetable_example.append([(quarto_station.position, quinto_station.position),schedule_0[0],0.5])
+	timetable_example.append([((quinto_station.position[0], quinto_station.position[1]), 
+		(quarto_station.position[0] - 1, quarto_station.position[1])),schedule_1[0],0.5])
 
-
-	# Different velocities in different lines.
-	speed_ration_map_lines = [1.       ,  # High velocity lines
-							  1. / 2.  ]  # Regional lines
 
 
 '''
@@ -333,76 +406,75 @@ if example_num == 2:
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
 
-	# Define the type of convoy
-	regional_train = Type_of_convoy('Regional', 1/3)
-	intercity_train = Type_of_convoy('Intercity', 1/2)
-	high_velocity_train = Type_of_convoy('High velocity', 1)
-
-	# Define the type of connection
-	regional = Connection_type(0, 1/2)
-
-	# No high velocity lines, so make a (0,0) position
-	av_line = (0,0)
+	av_line = [(0,0)]
 
 	# Define the stations
-	station_a = Station('Quarto', (3, 2), 2, 2, 0, 1)
-	station_b = Station('Quinto', (3, 9), 2, 2, 0, 1)
+	quarto_station = Station('Quarto', position = (3, 2), capacity = 2, min_wait_time = [2, 2, 1], 
+		additional_wait_percent = [0.5, 1, 1.5], importance = 80)
+	quinto_station = Station('Quinto', position = (3, 9), capacity = 2, min_wait_time = [2, 2, 1], 
+		additional_wait_percent = [0.5, 1, 1.5], importance = 80)
 
 	# Define the rail connection beetween the two stations
-	connection_a_b = Rail_connection(0, station_a, station_b, regional, 0)
+	connection_quarto_quinto = Rail_connection(identifier = 0, station_a = quarto_station, 
+		station_b = quinto_station, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
 
-	# Define the line
-	line_a_b = Line(0, regional, (station_a, station_b), (1, 1), 1)
+	# Define the lines
+	genova_urbana = Line(identifier = 0, type_line = Connection_type.NORMAL_RAIL, 
+		stations = (quarto_station, quinto_station), stops = (1, 1))
 
 	stations = []
-	stations.append([station_a.position, line_a_b.type_line.max_speed_possible])
-	stations.append([station_b.position, line_a_b.type_line.max_speed_possible])
-
-	# Define the train runs
-	train_run_0 = Train_run(0, 0, 3, True, True)
-	train_run_1 = Train_run(1, 0, 44, True, True)
-	train_run_2 = Train_run(2, 0, 85, True, True)
-	train_run_3 = Train_run(3, 0, 25, True, True)
-	train_run_4 = Train_run(4, 0, 65, True, True)
-	train_run_5 = Train_run(5, 0, 110, True, True)
+	stations.append([quarto_station.position, 0.5])
+	stations.append([quinto_station.position, 0.5])
 
 	# Define the convoys
-	convoy_0 = Convoy(0, intercity_train, 0)
-	convoy_1 = Convoy(1, intercity_train, 1)
+	R1079_convoy = Convoy( 'R1079', Type_of_convoy.INTERCITY)
+	R1078_convoy = Convoy( 'R1078', Type_of_convoy.INTERCITY)
+
+
+	train_runs_0 = []
+	train_runs_1 = []
+
+	starting_time_0 = 3
+	starting_time_1 = 22
+
+	for num_of_runs in range(2):
+		# The first train run start from depot
+		if num_of_runs == 0:
+			train_runs_0.append(Train_run(genova_urbana, starting_time = starting_time_0, from_depot = True))
+			starting_time_0 += 41
+		# The other train runs don't start from depot
+		else:
+			train_runs_0.append(Train_run(genova_urbana, starting_time = starting_time_0, inverse_train_direction = True))
+			starting_time_0 += 41
+
+	for num_of_runs in range(2):
+		# The first train run start from depot
+		if num_of_runs == 0:
+			train_runs_1.append(Train_run(genova_urbana, starting_time = starting_time_1, from_depot = True, inverse_train_direction = True))
+			starting_time_1 += 41
+		# The other train runs don't start from depot
+		else:
+			train_runs_1.append(Train_run(genova_urbana, starting_time = starting_time_1))
+			starting_time_1 += 41
 
 	schedule_0 = []
-
 	schedule_1 = []
 
-	# Calculate the schedule for the first convoy 
-	# for the first run
-	schedule_0.append(single_train_run_generator(convoy_0, train_run_0.starting_time, line_a_b.stations, rail))
-	# for the second run (inverted)
-	schedule_0.append(single_train_run_generator(convoy_0, train_run_1.starting_time, line_a_b.stations[::-1], rail))
-	# for the third run
-	schedule_0.append(single_train_run_generator(convoy_0, train_run_2.starting_time, line_a_b.stations, rail))
+	for num_of_runs in range(2):
+		R1079_convoy.add_train_run(train_runs_0[num_of_runs])
+		R1078_convoy.add_train_run(train_runs_1[num_of_runs])
 
-	convoy_0.schedule = schedule_0
+	schedule_0 = R1079_convoy.calculate_schedule(rail)
+	schedule_1 = R1078_convoy.calculate_schedule(rail)
 
-	# Calculate the schedule for the second convoy
-	# for the first run (inverted)
-	schedule_1.append(single_train_run_generator(convoy_1, train_run_3.starting_time, line_a_b.stations[::-1], rail))
-	# for the second run
-	schedule_1.append(single_train_run_generator(convoy_1, train_run_4.starting_time, line_a_b.stations, rail))
-	# for the third run
-	schedule_1.append(single_train_run_generator(convoy_1, train_run_5.starting_time, line_a_b.stations[::-1], rail))
 
-	convoy_1.schedule = schedule_1
-
-	# Timetable has the stations positions, the schedule times, and the velocity
 	timetable_example = []
 
-	timetable_example.append([(station_a.position, station_b.position),schedule_0[0],0.5])
-	timetable_example.append([((station_b.position[0] - 1, station_b.position[1]), (station_a.position[0] - 1, station_a.position[1])),schedule_0[1],0.5])
-	timetable_example.append([(station_a.position, station_b.position),schedule_0[2],0.5])
-	timetable_example.append([((station_b.position[0] - 1, station_b.position[1]), (station_a.position[0] - 1, station_a.position[1])),schedule_1[0],0.5])
-	timetable_example.append([(station_a.position, station_b.position),schedule_1[1],0.5])
-	timetable_example.append([((station_b.position[0] - 1, station_b.position[1]), (station_a.position[0] - 1, station_a.position[1])),schedule_1[2],0.5])
+	timetable_example.append([(quarto_station.position, quinto_station.position),schedule_0[0],0.5])
+	timetable_example.append([((quinto_station.position[0] - 1, quinto_station.position[1]), (quarto_station.position[0] - 1, quarto_station.position[1])),schedule_0[1],0.5])
+	timetable_example.append([((quinto_station.position[0] - 1, quinto_station.position[1]), (quarto_station.position[0] - 1, quarto_station.position[1])),schedule_1[0],0.5])
+	timetable_example.append([(quarto_station.position, quinto_station.position),schedule_1[1],0.5])
 
 
 	# Different velocities in different lines.
