@@ -7,7 +7,8 @@ from enum import IntEnum
 from typing import List, NamedTuple, Optional, Dict, Tuple
 
 import numpy as np
-
+# import chain
+from itertools import chain
 
 from flatland.core.env import Environment
 from flatland.core.env_observation_builder import ObservationBuilder
@@ -29,7 +30,9 @@ from flatland.envs import agent_chains as ac
 from flatland.envs.observations import GlobalObsForRailEnv
 from gym.utils import seeding
 
-from structures import  av_line
+from configuration import  av_line
+
+# TODO, model the fact that trains have to STOP at stations
 
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
@@ -85,7 +88,7 @@ class RailEnvActions(IntEnum):
             2: 'F',
             3: 'R',
             4: 'S',
-            5: 'G',
+            5: 'G'
         }[a]
 
 
@@ -110,6 +113,7 @@ class RailEnv(Environment):
      -   2: move to the next cell in front of the agent; if the agent was not moving, movement is started
      -   3: turn right at switch and move to the next cell; if the agent was not moving, movement is started
      -   4: stop moving
+     -   5: reverse the direction
 
     Moving forward in a dead-end cell makes the agent turn 180 degrees and step
     to the cell it came from.
@@ -558,6 +562,8 @@ class RailEnv(Environment):
 
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
+
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
                 # The other check that the action has been done only one time. The status can't be always active
                 # for the agent, because when it reaches its target has to change
@@ -610,6 +616,8 @@ class RailEnv(Environment):
 
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
+
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
                 # The other check that the action has been done only one time. The status can't be always active
                 # for the agent, because when it reaches its target has to change
@@ -645,12 +653,13 @@ class RailEnv(Environment):
 
                 # Starting time of the agent
                 starting_time = optionals['agents_hints']['timetable'][i_agent][1][0]
+                ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
+
                 # If the elapsed time is greater equal the starting time of the i_agent, the agent is active
                 # The other check that the action has been done only one time. The status can't be always active
                 # for the agent, because when it reaches its target has to change
                 # the initial position is done only one time, then the position change depending on the action of the agent
                 
-                # TODO mancano controlli sul fatto che la posizione iniziale sia libera
                 if (self._elapsed_steps >= starting_time):
                     if (self.run_once[i_agent] == 0): #(self.cell_free(agent.initial_position)):
                         agent.status = RailAgentStatus.ACTIVE
@@ -703,9 +712,10 @@ class RailEnv(Environment):
         action_dict_ : Dict[int,RailEnvActions]
 
         """
+        ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
 
         agent = self.agents[i_agent]
-        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
+        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED] and self._elapsed_steps >= ending_time/2:  # this agent has already completed...
             return
 
         # agent gets active by a MOVE_* action and if c
@@ -818,7 +828,7 @@ class RailEnv(Environment):
                     agent.speed_data['position_fraction'] = 0.0
 
             # has the agent reached its target?
-            if np.equal(agent.position, agent.target).all():
+            if np.equal(agent.position, agent.target).all() and self._elapsed_steps >= ending_time/2:
                 agent.status = RailAgentStatus.DONE
                 self.dones[i_agent] = True
                 self.active_agents.remove(i_agent)
@@ -834,9 +844,16 @@ class RailEnv(Environment):
         """ "close following" version of step_agent.
         """
 
+        # Build info dict
+        rail, optionals = self.rail_generator(
+            self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
+
         agent = self.agents[i_agent]
 
-        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:  # this agent has already completed...
+        ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
+
+        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED] and self._elapsed_steps >= ending_time /2:  # this agent has already completed...
             return
 
         # agent gets active by a MOVE_* action and if c, and check if the starting time is arrived
@@ -948,9 +965,16 @@ class RailEnv(Environment):
 
     def _step_agent2_cf(self, i_agent):
 
+
+        # Build info dict
+        rail, optionals = self.rail_generator(
+            self.width, self.height, self.number_of_agents, self.num_resets, self.np_random)
+
         agent = self.agents[i_agent]
 
-        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED]:
+        ending_time = optionals['agents_hints']['timetable'][i_agent][1][-1]
+
+        if agent.status in [RailAgentStatus.DONE, RailAgentStatus.DONE_REMOVED] and self._elapsed_steps >= ending_time /2:
             return
 
         (move, rc_next) = self.motionCheck.check_motion(i_agent, agent.position)
@@ -992,7 +1016,7 @@ class RailEnv(Environment):
                 agent.speed_data['position_fraction'] = 0.0
 
             # has the agent reached its target?
-            if np.equal(agent.position, agent.target).all():
+            if np.equal(agent.position, agent.target).all() and self._elapsed_steps >= ending_time /2:
                 agent.status = RailAgentStatus.DONE
                 self.dones[i_agent] = True
                 self.active_agents.remove(i_agent)
@@ -1068,8 +1092,6 @@ class RailEnv(Environment):
             1) transition allows the new_direction in the cell,
             2) the new cell is not empty (case 0),
             3) the cell is free, i.e., no agent is currently in that cell
-
-
         """
         # compute number of possible transitions in the current
         # cell used to check for invalid actions
@@ -1177,6 +1199,8 @@ class RailEnv(Environment):
         elif action == RailEnvActions.REVERSE:
             new_direction = agent.direction +2
 
+            transition_valid = True
+
         new_direction %= 4
 
         if action == RailEnvActions.MOVE_FORWARD and num_transitions == 1:
@@ -1279,10 +1303,10 @@ class RailEnv(Environment):
             else: 
                 return False
 
+
     def check_passage_time(self, agents_hints):
         return(0)
 
-        # TODO Check the velocity depending on the timetable...
     def check_speed(self, agents_hints, train_type):
 
         # Velocity depending on the train type and on the line (Take the minimum between the two possible velocities)
