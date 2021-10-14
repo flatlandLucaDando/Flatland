@@ -12,8 +12,11 @@
 # Tests e Tutorial:
 - Contengono test e tutorial di 'flatland'
 
-# prova.py:
+# main.py:
 - Script python che implementa uno stude case
+
+ # Configuration
+ - File of configuration for the user
 
 # Problema:
 - 1- Fare i tutorial ultima release di Flatland
