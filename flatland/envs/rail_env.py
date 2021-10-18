@@ -32,8 +32,6 @@ from gym.utils import seeding
 
 from configuration import  av_line
 
-# TODO, model the fact that trains have to STOP at stations
-
 # Direct import of objects / classes does not work with circular imports.
 # from flatland.envs.malfunction_generators import no_malfunction_generator, Malfunction, MalfunctionProcessData
 # from flatland.envs.observations import GlobalObsForRailEnv
@@ -1331,7 +1329,3 @@ class RailEnv(Environment):
                     train_velocities[i_agent] = min(1/2, agents_hints['timetable'][i_agent][2])
 
         return train_velocities
-
-
-
-
