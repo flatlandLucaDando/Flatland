@@ -10,7 +10,7 @@
   Simple example 3 stations and double rail between them
 </p>
 
-![image info](./images/esempio2.png)
+![image info](./images/esempio3.png)
 
 <p align="center">
   # Example 3:
