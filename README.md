@@ -1,31 +1,37 @@
-# Flatland:   
-- Contiene 'envs', dove ci sono funzioni utili per generare il modello, la schedule etc etc...    
-- 'core', dove ci sono le funzioni core (costruttori e transition map), ((tendenzialmente non serve toccarlo))   
-- 'png' e 'svg' contengono le immagini per renderizzare    
+# Flatland:  
+In flatland reposetory there are different important reposetories:
+- envs, with the files to generate the environment
+- core, with the core function to generate the map of the railway
+- png, and svg, with the images for render
+- [NEW] data_structures, with the structures important to build a railway (station, convoy, line)
+- examples, conteins different example of different topologies to consider for the tests
+- output, with the images and the timetable obteined by executing the different examples 
 
 # Scripts:    
-- Contiene uno script per convertire le immagini svg a png
+- There is a script to convert images from svg to png
 
 # Specifications:
-- Contiene le specifiche del sistema 'flatland'
+- Contein the specifications of Flatland
 
 # Tests e Tutorial:
-- Contengono test e tutorial di 'flatland'
+- [ORIGINAL] contein the originals tests and tutorials of flatland
 
 # main.py:
-- Script python che implementa uno stude case
+- Main script to execute the simulation
 
  # Configuration
- - File of configuration for the user
+ - Configuration file for the user, the user have to specify the stations, the convoys, the lines, the train runs of the railway
 
-# Problema:
+# Extension to Flatland:
+- 4- Extend Schedule generator so that the user can specify the generation time of agents (default 0) and that an agent should do multiple train runs before ending its work
+- 4.5- Introduce dynamic velocities, the velocity is calculated as ![equation](http://www.sciweavers.org/tex2img.php?eq=1%2Bsin%28mc%5E2%29&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=)
 - 1- Fare i tutorial ultima release di Flatland
 - 2- Vedere i due use case descritti abbstanza in dettaglio nelle specifiche
 - 3- Imparare a creare una rete custom, da file (Rail generator e Schedule generator)
 - X- Avere ben presente le specifiche    
 --
 - 4- Estendere Schedule generator in modo che l'utente possa specificare il tempo di generazione degli agenti (default 0).
-- 4.5- Estendere i tipi di velocità min(velocità massima tratta, max velocità treno, lunghezza tratta/(tempo arrivo (timetable) - tempo adesso) >= 0) (attenzione di non fare diviso zero)
+- 4.5- Estendere i tipi di velocità min(velocità massima tratta, max velocità treno, lunghezza tratta/(tempo arrivo (timetable) - tempo adesso) > 0) (attenzione di non fare diviso zero)
 - 5- Estenedere il sistema di conseguenza
 - 6- Estendere schedule generator in modo che l'utente possa specificare le stazioni intermedie
 - 7- Cambiare la reward per favorire il passaggio per stazioni intermedie
