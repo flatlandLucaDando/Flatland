@@ -32,3 +32,5 @@ if i ==2:
 
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
+
+	av_line = [(0,0)]
