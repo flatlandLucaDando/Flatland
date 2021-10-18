@@ -23,8 +23,8 @@ In flatland reposetory there are different important reposetories:
 # main.py:
 - Main script to execute the simulation
 
- # Configuration
- - Configuration file for the user, the user have to specify the stations, the convoys, the lines, the train runs of the railway
+# [NEW] configuration.py
+- Configuration file for the user, the user have to specify the stations, the convoys, the lines, the train runs of the railway
 
 # Extension to Flatland:
 - 1- Extend Schedule generator so that the user can specify:
