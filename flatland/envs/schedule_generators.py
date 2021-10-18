@@ -17,7 +17,7 @@ from flatland.envs import persistence
 # This is to test if the timetable is valid or not
 from flatland.core.grid.grid4_astar import a_star
 
-from configuration import railway_example, stations, timetable_example, av_line
+from configuration import railway_example, av_line, stations, timetable_example
 
 from flatland.envs.timetables_utils import control_timetable, time_in_station, check_train_in_station, action_to_do, time_to_reach_next_station
 
