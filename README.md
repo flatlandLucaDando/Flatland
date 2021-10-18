@@ -24,7 +24,7 @@ In flatland reposetory there are different important reposetories:
 
 # Extension to Flatland:
 - 4- Extend Schedule generator so that the user can specify the generation time of agents (default 0) and that an agent should do multiple train runs before ending its work
-- 4.5- Introduce dynamic velocities, the velocity is calculated as ![equation](http://www.sciweavers.org/tex2img.php?eq=%5Cmin%28maxLineVelocity%2C%20maxTrainVelocity%2C%20%5Cfrac%7Blen%20%7D%7BarrivalTime%20-%20timeNow%7D%29%20&bc=Transparent&fc=White&im=jpg&fs=18&ff=arev&edit=0)
+- 4.5- Introduce dynamic velocities, the velocity is calculated as ![equation](https://bit.ly/3lOMEHY)
 - 1- Fare i tutorial ultima release di Flatland
 - 2- Vedere i due use case descritti abbstanza in dettaglio nelle specifiche
 - 3- Imparare a creare una rete custom, da file (Rail generator e Schedule generator)
