@@ -1,33 +1,26 @@
 import time
 import numpy as np
 import os
-
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
 from flatland.envs.malfunction_generators import malfunction_from_params, MalfunctionParameters, ParamMalfunctionGen
-from flatland.envs.observations import GlobalObsForRailEnv
+from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 # First of all we import the Flatland rail environment
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
-
+# Import the railway generators
 from flatland.envs.custom_rail_generator import rail_custom_generator
-# Importing the railway generators
-from flatland.envs.rail_generators import rail_from_manual_specifications_generator, sparse_rail_generator
-from flatland.envs.predictions import ShortestPathPredictorForRailEnv
-from flatland.utils.rendertools import RenderTool
-from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
-# Importing the schedule generators
-from flatland.envs.schedule_generators import random_schedule_generator, custom_schedule_generator, action_to_do, complex_schedule_generator, control_timetable, sparse_schedule_generator, check_train_in_station
-# Importing the different structures needed
+# Import the schedule generators
+from flatland.envs.custom_schedule_generator import custom_schedule_generator
+from flatland.envs.timetables_utils import action_to_do, check_train_in_station, control_timetable
+# Import the different structures needed
 from configuration import railway_example, stations, timetable_example
+# Import the agent class
+from flatland.envs.agent import RandomAgent
 
-from flatland.core.grid.grid4_astar import a_star
 
-from flatland.envs.timetables_utils import action_to_do
-
-from flatland.envs.custom_schedule_generator import custom_schedule_generator  
 
 # Flag active in case of interruptions
 interruption = False
@@ -48,7 +41,6 @@ for i in range(1, len(stations)):
 # each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
 # Each row represent a different train
 
-# Importing the timetable
 timetable = timetable_example
 
 check_train_in_station(timetable)
@@ -65,25 +57,20 @@ num_of_agents = len(timetable)
 # Check if the timetable is feaseble or not, the function is in schedule_generators
 # A timetable is feaseble if the difference of times between two stations is positive and let the trains to reach the successive station
 # if two stations are very distant from each other the difference of times can't be very small
-
 seed = 2
 
 # Generating the railway topology, with stations
 # Arguments of the generator (specs of the railway, position of stations, timetable)
-
 rail_custom = rail_custom_generator(specs, stations_position, timetable)
 
-transition_map_example_4, agent_hints = rail_custom(widht, height, num_of_agents)
+transition_map_example, agent_hints = rail_custom(widht, height, num_of_agents)
 
-control_timetable(timetable,transition_map_example_4)
-
-# Debug, used to print the av lines
-#print(a_star(transition_map_example_4,(20,2), (15,48)))
+control_timetable(timetable,transition_map_example)
 
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator(timetable = timetable)
 
-actions_scheduled = action_to_do(timetable, transition_map_example_4)
+actions_scheduled = action_to_do(timetable, transition_map_example)
 
 # DEBUG
 for i in range(len(actions_scheduled)):
@@ -91,11 +78,6 @@ for i in range(len(actions_scheduled)):
 	print(actions_scheduled[i])
 	print()
 
-
-# DEBUG
-#print(len(actions_scheduled[0]), len(actions_scheduled[1]), len(actions_scheduled[2]), len(actions_scheduled[3]), len(actions_scheduled[4]), len(actions_scheduled[5]))
-#print(actions_scheduled)
-#print(len(actions_scheduled[0]))
 
 TreeObservation = GlobalObsForRailEnv()
 
@@ -116,132 +98,12 @@ env_renderer = RenderTool(env,
 						  screen_height=1080*2,
 						  screen_width=1080*2)  # Adjust these parameters to fit your resolution
 
-# If want to export the video
-'''
-env_renderer = RenderTool(env,
-						  gl="PILSVG",
-						  screen_height=1080*2,
-						  screen_width=1080*2)  # Adjust these parameters to fit your resolution
-'''
-# DEBUG!!!
-#env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
-#input("Press Enter to continue...")
-
-
-
-# Import your own Agent or use RLlib to train agents on Flatland
-# As an example we use a random agent instead
-class RandomAgent:
-
-	def __init__(self, state_size, action_size):
-		self.state_size = state_size
-		self.action_size = action_size
-
-
-	# HERE DEFINE THE ACTIONS TO DO IN CASE THE AGENT IS NOT IN THE DETERMINISTIC PART 
-	# For now the agents can only move forward (for DEBUG)
-	def act(self, state):
-		return RailEnvActions.MOVE_FORWARD
-
-	def step(self, memories):
-		"""
-
-		Step function to improve agent by adjusting policy given the observations
-
-		:param memories: SARS Tuple to be
-		:return:
-		"""
-
-		return
-
-	def save(self, filename):
-		# Store the current policy
-		return
-
-	def load(self, filename):
-		# Load a policy
-		return
-
-
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
 controller = RandomAgent(218, env.action_space[0])
 
-# We start by looking at the information of each agent
-# We can see the task assigned to the agent by looking at
-print("\n Agents in the environment have to solve the following tasks: \n")
-for agent_idx, agent in enumerate(env.agents):
-	print(
-		"The agent with index {} has the task to go from its initial position {}, facing in the direction {} to its target at {}.".format(
-			agent_idx, agent.initial_position, agent.direction, agent.target))
-
-# The agent will always have a status indicating if it is currently present in the environment or done or active
-# For example we see that agent with index 0 is currently not active
-print("\n Their current statuses are:")
-print("============================")
-
-for agent_idx, agent in enumerate(env.agents):
-	print("Agent {} status is: {} with its current position being {}".format(agent_idx, str(agent.status),
-																			 str(agent.position)))
-
-# The agent needs to take any action [1,2,3] except do_nothing or stop to enter the level
-# If the starting cell is free they will enter the level
-# If multiple agents want to enter the same cell at the same time the lower index agent will enter first.
-
-# Let's check if there are any agents with the same start location
-agents_with_same_start = set()
-print("\n The following agents have the same initial position:")
-print("=====================================================")
-for agent_idx, agent in enumerate(env.agents):
-	for agent_2_idx, agent2 in enumerate(env.agents):
-		if agent_idx != agent_2_idx and agent.initial_position == agent2.initial_position:
-			print("Agent {} as the same initial position as agent {}".format(agent_idx, agent_2_idx))
-			agents_with_same_start.add(agent_idx)
-
 # Lets try to enter with all of these agents at the same time
 action_dict = dict()
-
-for agent_id in agents_with_same_start:
-	action_dict[agent_id] = 0 # Try to move with the agents
-
-# Do a step in the environment to see what agents entered:
-env.step(action_dict)
-
-# Current state and position of the agents after all agents with same start position tried to move
-print("\n This happened when all tried to enter at the same time:")
-print("========================================================")
-for agent_id in agents_with_same_start:
-	print(
-		"Agent {} status is: {} with the current position being {}.".format(
-			agent_id, str(env.agents[agent_id].status),
-			str(env.agents[agent_id].position)))
-
-# As you see only the agents with lower indexes moved. As soon as the cell is free again the agents can attempt
-# to start again.
-
-# You will also notice, that the agents move at different speeds once they are on the rail.
-# The agents will always move at full speed when moving, never a speed inbetween.
-# The fastest an agent can go is 1, meaning that it moves to the next cell at every time step
-# All slower speeds indicate the fraction of a cell that is moved at each time step
-# Lets look at the current speed data of the agents:
-
-print("\n The speed information of the agents are:")
-print("=========================================")
-
-for agent_idx, agent in enumerate(env.agents):
-	print(
-		"Agent {} speed is: {:.2f} with the current fractional position being {}".format(
-			agent_idx, agent.speed_data['speed'], agent.speed_data['position_fraction']))
-
-# New the agents can also have stochastic malfunctions happening which will lead to them being unable to move
-# for a certain amount of time steps. The malfunction data of the agents can easily be accessed as follows
-print("\n The malfunction data of the agents are:")
-print("========================================")
-
-for agent_idx, agent in enumerate(env.agents):
-	print(
-		"Agent {} is OK = {}".format(
-			agent_idx, agent.malfunction_data['malfunction'] < 1))
 
 # Now that you have seen these novel concepts that were introduced you will realize that agents don't need to take
 # an action at every time step as it will only change the outcome when actions are chosen at cell entry.
@@ -264,7 +126,7 @@ for info in information['action_required']:
 # We recommend that you monitor the malfunction data and the action required in order to optimize your training
 # and controlling code.
 
-# Let us now look at an episode playing out with random actions performed
+# Let us now look at an episode playing out 
 
 print("\nStart episode...")
 
@@ -273,7 +135,6 @@ env_renderer.reset()
 
 # Here you can also further enhance the provided observation by means of normalization
 # See training navigation example in the baseline repository
-
 
 score = 0
 # Run episode
@@ -300,11 +161,8 @@ for trials in range(1, n_trials + 1):
 	for step in range(1440):
 
 		env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
-	############################################################################################
-	############################################################################################
-	###############              HERE DEFINE WHICH ACTIONS TO USE                 ##############
-	############################################################################################
-	############################################################################################
+
+	# Here define the actions to do
 
 		# Chose an action for each agent in the environment
 		# If not interruption, the actions to do are stored in a matrix
@@ -332,5 +190,3 @@ for trials in range(1, n_trials + 1):
 		if done['__all__']:
 			break
 	print('Episode Nr. {}\t Score = {}'.format(trials, score))
-
-
