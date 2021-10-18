@@ -1,35 +1,47 @@
-# agent_chains.py:    
-si occupa di gestire i movimenti e la renderizzazione degli agenti
+# [NEW] agent:
+definition of agent in the environment
 
-# agent_utils.py:    
-file per le utils di agent, definisce le posizioni degli agenti partendo da schedule
+# agent_chains.py:
+it manages the movements of agents and their renderization
+
+# agent_utils.py:
+defines the positions of the agents from schedule
+
+# [NEW] custom_rail_generator.py:
+generate a custom rail
+
+# [NEW] custom_schedule_generator.py:
+generate a custom schedule
 
 # distance_map.py, grid4_generators_utils.py:
-file per la creazione della mappa, definisce le distanze nella griglia e trasforma da griglia a mappa...
+creates the map, define distances in the grid and turn it in a gridTransitionMap
 
 # flatland_envs_rail_env_utils.py:    
-file per creazione di environment partendo da file
+creation of an environment from a file
 
 # malfunction_generators.py:    
-creatore di malfunzionamenti negli agenti
+generator of malfunction for the agents
 
-# observations.py:    
-file per la creazione delle osservazioni 
+# observations.py:   
+observer of the agents, an agent can observe different things in the environment
 
 # persistence.py:    
-file per la gestione della simulazione
+manage the simulations
 
-# predictions.py:    
-file per la definizione dei predittori
+# predictions.py:   
+defines predictors
 
-# rail_env.py, rail_env_shortest_paths.py, rail_env_utils.py:     
-file per la creazione dell'environment, implementazione shortest path, utils per l'environment
+# rail_env.py, rail_env_shortest_paths.py, rail_env_utils.py:    
+creates the environment, implement shortest path and utils
 
 # rail_generators:    
-generatori di ferrovia, rail_from_manual_specifications_generator() crea una ferrovia partendo da una matrice, definendo anche le stazioni
+generate the rails
 
-# schedule_generators.py:    
-generatore di schedule, custom_schedule_generator() crea una schedule customizzata, con timetable, e stazioni intermedie 
+# schedule_generators.py:
+generate the schedule
 
 # schedule_utils.py:    
-definisce la struttura Schedule che viene utilizzata 
+utils for schedule
+
+# [NEW] timetables_utils.py:
+utils for the definition of the timetable
