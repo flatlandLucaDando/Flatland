@@ -21,7 +21,6 @@ from configuration import railway_example, stations, timetable_example
 from flatland.envs.agent import RandomAgent
 
 
-
 # Flag active in case of interruptions
 interruption = False
 
@@ -72,6 +71,7 @@ schedule_generator_custom = custom_schedule_generator(timetable = timetable)
 
 actions_scheduled = action_to_do(timetable, transition_map_example)
 
+
 # DEBUG
 for i in range(len(actions_scheduled)):
 	print()
@@ -84,7 +84,7 @@ TreeObservation = GlobalObsForRailEnv()
 env = RailEnv(  width= widht,
 				height= height,
 				rail_generator = rail_custom,
-				schedule_generator=schedule_generator_custom,
+				line_generator=schedule_generator_custom,
 				number_of_agents= num_of_agents,
 				obs_builder_object=TreeObservation,
 				remove_agents_at_target=True,
@@ -151,7 +151,7 @@ for trials in range(1, n_trials + 1):
 	obs, info = env.reset()
 	for idx in range(env.get_num_agents()):
 		tmp_agent = env.agents[idx]
-		tmp_agent.speed_data["speed"] = 1 / (idx + 1)
+		tmp_agent.speed_counter.speed = 1 / (idx + 1)
 	env_renderer.reset()
 	# Here you can also further enhance the provided observation by means of normalization
 	# See training navigation example in the baseline repository
@@ -168,6 +168,15 @@ for trials in range(1, n_trials + 1):
 		# If not interruption, the actions to do are stored in a matrix
 		#       - each row of the matrix is a train
 		#       - each column represent the action the train has to do at each time instant
+
+		print('=================================')
+		print('Elapsed time is', step, 'minutes')   # DEBUG
+
+		# DEBUG print the velocities
+		for agent in env.agents:
+			i_agent = agent.handle
+			print('Velocity of the', i_agent, 'agent is', agent.speed_counter.speed)
+
 		for a in range(env.get_num_agents()):
 			if step >= timetable[a][1][0]:
 				if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
@@ -180,6 +189,15 @@ for trials in range(1, n_trials + 1):
 		# Environment step which returns the observations for all agents, their corresponding
 		# reward and whether their are done
 		next_obs, all_rewards, done, _ = env.step(action_dict)
+
+		'''
+		print('================================')
+		print(env.agents[0])
+		print(env.agents[1])
+		print(timetable)
+		print('================================')
+		'''
+
 		env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
 
 		# Update replay buffer and train agent
