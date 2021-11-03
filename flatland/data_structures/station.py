@@ -18,7 +18,16 @@ class Station:
 		# Stations have different importance depending on how much they are big and how much people they transport depending on the time
 		self.importance = importance
 		# Rails of the station
-		self.rails_in_station = self.calculate_rails(railway_topology)
+		self.rails = self.calculate_rails(railway_topology)
+
+
+	def time_in_station(self, train_velocity):
+		# The len of the rails is given by the station
+		len_rails = len(self.rails_in_station[0])
+		# The time needed is given by the formula (len * 1/velocity + waiting time + 10% of time)
+		time_needed =  len_rails * int(pow(train_velocity, -1)) + self.min_wait_time[0]
+		time_needed += int(time_needed/10)
+		return time_needed
 
 	def calculate_rails(self, railway_topology):
 		# Number of rails of the station
@@ -36,7 +45,7 @@ class Station:
 		# Counter
 		counter_of_rails = 0
 		# Rails of the station, has the position of the rails. Each row is a rail
-		self.rails_in_station = []
+		self.rails = []
 		# Contein the single rail positions
 		single_rail_in_station = []
 
@@ -90,7 +99,7 @@ class Station:
 						# The exit is on right
 						if current_position[0] == self.position[0]:
 							self.station_exit = current_position
-						self.rails_in_station.append(single_rail_in_station)
+						self.rails.append(single_rail_in_station)
 						# Restart the position from original once
 						current_position = (self.position[0], self.position[1])
 						# A rail is ended
@@ -184,7 +193,7 @@ class Station:
 						# The exit is on right
 						if current_position[1] == self.position[1]:
 							self.station_exit = current_position
-						self.rails_in_station.append(single_rail_in_station)
+						self.rails.append(single_rail_in_station)
 						# Restart the position from original once
 						current_position = (self.position[0], self.position[1])
 						# A rail is ended
@@ -235,10 +244,10 @@ class Station:
 		# Eliminate duplicates
 		rails_position = []
 		rails_position_single = []
-		for i in range(len(self.rails_in_station)):
-			for j in range(len(self.rails_in_station[i])):
-				if self.rails_in_station[i][j] not in rails_position_single:
-					rails_position_single.append(self.rails_in_station[i][j])
+		for i in range(len(self.rails)):
+			for j in range(len(self.rails[i])):
+				if self.rails[i][j] not in rails_position_single:
+					rails_position_single.append(self.rails[i][j])
 			rails_position.append(rails_position_single)
 			rails_position_single = []
-		self.rails_in_station = rails_position
+		self.rails = rails_position
