@@ -8,8 +8,7 @@ from flatland.core.transition_map import GridTransitionMap
 from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.schedule_utils import Schedule 
 
-from flatland.envs.schedule_generators import check_rail_road_direction
-from flatland.envs.timetables_utils import control_timetable, time_in_station, check_train_in_station, action_to_do, time_to_reach_next_station
+from flatland.envs.line_generators import check_rail_road_direction
 
 AgentPosition = Tuple[int, int]
 ScheduleGenerator = Callable[[GridTransitionMap, int, Optional[Any], Optional[int]], Schedule]
