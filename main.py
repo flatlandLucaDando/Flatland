@@ -14,7 +14,7 @@ from flatland.envs.custom_rail_generator import rail_custom_generator
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Import the schedule generators
 from flatland.envs.custom_schedule_generator import custom_schedule_generator
-from flatland.envs.timetables_utils import action_to_do, check_train_in_station, control_timetable
+from flatland.envs.plan_to_follow_utils import action_to_do, divide_trains_in_station_rails, control_timetable
 # Import the different structures needed
 from configuration import railway_example, stations, timetable_example
 # Import the agent class
@@ -42,7 +42,7 @@ for i in range(1, len(stations)):
 
 timetable = timetable_example
 
-check_train_in_station(timetable)
+divide_trains_in_station_rails(timetable)
 
 print('=====================================================')
 print('==================  TIMETABLE  ======================')
