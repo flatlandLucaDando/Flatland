@@ -224,6 +224,3 @@ class EnvAgent:
     def speed_data(self):
         raise ValueError("agent.speed_data is deprecated, please use agent.speed_counter instead")
 
-
-    
-
