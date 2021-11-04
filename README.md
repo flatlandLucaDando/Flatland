@@ -1,5 +1,5 @@
 # Flatland:  
-In flatland reposetory there are different important reposetories:
+In flatland repository there are different important reposetories:
 - envs, with the files to generate the environment
 - core, with the core function to generate the map of the railway
 - png, and svg, with the images for render
