@@ -30,16 +30,16 @@ and envs.rail_generators.random_rail_generator.
 The first one accepts a list of lists whose each element is a 2-tuple, whose
 entries represent the 'cell_type' (see core.transitions.RailEnvTransitions) and
 the desired clockwise rotation of the cell contents (0, 90, 180 or 270 degrees).
-For example,
+The file should be added in the EXAMPLES repository, an example is given:
 
 .. code-block:: python
 
-    railway_example = [[(0,0)]*12,                                                      						 					# 0
-				   [(0,0)]*12,                                                      						 					# 1
-				   [(0,0)] + [(7,270)] + [(1,90)]*2 + [(8,90)] + [(0,0)]*2 + [(8,0)] + [(1,90)]*2 + [(7,90)] + [(0,0)],         # 2
-				   [(0,0)] + [(7,270)] + [(1,90)]*2 + [(10,270)] + [(1,90)]*2 + [(2,90)] + [(1,90)]*2 + [(7,90)] + [(0,0)],     # 3
-				   [(0,0)]*12,                                                              				 					# 4
-				   [(0,0)]*12]                                                       						 					# 5
+    railway_example = [[(0,0)]*12,             				                                                            # 0
+		       [(0,0)]*12,                                                                                                  # 1
+		       [(0,0)] + [(7,270)] + [(1,90)]*2 + [(8,90)] + [(0,0)]*2 + [(8,0)] + [(1,90)]*2 + [(7,90)] + [(0,0)],         # 2
+		       [(0,0)] + [(7,270)] + [(1,90)]*2 + [(10,270)] + [(1,90)]*2 + [(2,90)] + [(1,90)]*2 + [(7,90)] + [(0,0)],     # 3
+		       [(0,0)]*12,                                                              				    # 4
+		       [(0,0)]*12]                                                       					    # 5
 
     # wheight and height of the grid
     height = len(railway_example)
@@ -69,7 +69,8 @@ For example,
     # No high velocity lines, so make a (0,0) position
     av_line = (0,0)
 
-Then is important to specify the stations:
+Now is important to work in the configuration.py file.
+Is important to specify the stations, stations represent the physical stations, with a capacity of different rails, a position, the minimum wait time to charge the passengers depending on the type of train and the importance of the station:
 
 .. code-block:: python
 
@@ -78,11 +79,95 @@ Then is important to specify the stations:
     quinto_station = Station('Quinto', position = (3, 9), capacity = 2, min_wait_time = [2, 2, 1], 
 	additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)    
 
+The connection between the different stations, with multiple types of connection (e.g. high velocity, regional...) and a maximum speed possible:
+
+.. code-block:: python
+
+	connection_quarto_quinto = Rail_connection(station_a = quarto_station, 
+		station_b = quinto_station, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
+		
+The lines of the railway, with different types (e.g. regional or high velocity) and the stations to stop:
+
+.. code-block:: python
+
+	genova_urbana = Line(type_line = Connection_type.NORMAL_RAIL, 
+		stations = (quarto_station, quinto_station), stops = (1, 1))
+		
+The train runs based on the starting time:
+
+.. code-block:: python
+
+	train_run_0 = Train_run(genova_urbana, starting_time = 3, from_depot = True)
+	train_run_1 = Train_run(genova_urbana, starting_time = 10, from_depot = True, inverse_train_direction = True)
+	train_run_2 = Train_run(genova_urbana, starting_time = 40, inverse_train_direction = True)
+	
+And the convoys, with different types (e.g. high velocity, regional..):
+
+.. code-block:: python
+
+	R1079_convoy = Convoy( Type_of_convoy.INTERCITY)
+	R1078_convoy = Convoy( Type_of_convoy.INTERCITY)
+
+Now we can add the train runs to the convoys and then generate the plan to do:
+
+.. code-block:: python
+
+	R1079_convoy.add_train_run(train_run_0)
+	R1079_convoy.add_train_run(train_run_2)
+	R1078_convoy.add_train_run(train_run_1)
+
+	# Generating the PLAN 
+	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
+	timetable_example = calculate_timetable(convoys, rail)
+
+Then in main we can calculate different things
+
+.. code-block:: python
+	
+	# Specification to create the environment
+	specs = railway_example
+	widht = len(specs[0])
+	height = len(specs)
+	num_of_agents = len(timetable)
+	
+	# Generating the railway topology, with stations
+	# Arguments of the generator (specs of the railway, position of stations, timetable)
+	rail_custom = rail_custom_generator(specs, stations_position, timetable)
+
+	transition_map_example, agent_hints = rail_custom(widht, height, num_of_agents)
+
+	control_timetable(timetable,transition_map_example)
+
+	# We can now initiate the schedule generator with the given speed profiles
+	schedule_generator_custom = custom_schedule_generator(timetable = timetable)
+	
+	# Action scheduled for each agent in the environment, these action are scheduled in case of opereting in deterministic case
+	actions_scheduled = action_to_do(timetable, transition_map_example)
+	
+	TreeObservation = GlobalObsForRailEnv()
+
+	env = RailEnv(  width= widht,
+					height= height,
+					rail_generator = rail_custom,
+					line_generator=schedule_generator_custom,
+					number_of_agents= num_of_agents,
+					obs_builder_object=TreeObservation,
+					remove_agents_at_target=True,
+					record_steps=True
+					)
+
+
+	env.reset()
+	
+	
 Environments can be rendered using the utils.rendertools utilities, for example:
 
 .. code-block:: python
 
-    env_renderer = RenderTool(env)
+    env_renderer = RenderTool(env,
+    				screen_height=1080*2,
+				screen_width=1080*2))
     env_renderer.render_env(show=True)
 
 
