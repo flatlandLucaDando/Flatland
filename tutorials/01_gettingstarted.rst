@@ -34,46 +34,49 @@ For example,
 
 .. code-block:: python
 
-    specs = [[(0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
-             [(0, 0), (0, 0), (0, 0), (0, 0), (7, 0), (0, 0)],
-             [(7, 270), (1, 90), (1, 90), (1, 90), (2, 90), (7, 90)],
-             [(0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (0, 0)]]
+    railway_example = [[(0,0)]*12,                                                      						 					# 0
+				   [(0,0)]*12,                                                      						 					# 1
+				   [(0,0)] + [(7,270)] + [(1,90)]*2 + [(8,90)] + [(0,0)]*2 + [(8,0)] + [(1,90)]*2 + [(7,90)] + [(0,0)],         # 2
+				   [(0,0)] + [(7,270)] + [(1,90)]*2 + [(10,270)] + [(1,90)]*2 + [(2,90)] + [(1,90)]*2 + [(7,90)] + [(0,0)],     # 3
+				   [(0,0)]*12,                                                              				 					# 4
+				   [(0,0)]*12]                                                       						 					# 5
 
-    env = RailEnv(width=6,
-                  height=4,
-                  rail_generator=rail_from_manual_specifications_generator(specs),
-                  number_of_agents=1,
-                  obs_builder_object=TreeObsForRailEnv(max_depth=2))
-    env.reset()
+    # wheight and height of the grid
+    height = len(railway_example)
+    width = len(railway_example[0])
 
-Alternatively, a random environment can be generated (optionally specifying
-weights for each cell type to increase or decrease their proportion in the
-generated rail networks).
+    # creating the transition map
+    rail_env_transitions = RailEnvTransitions()
+    rail = GridTransitionMap(width=width, height=height, transitions=rail_env_transitions)
+
+    for r in range(height):
+        for c in range(width):
+            rail_spec_of_cell = railway_example[r][c]
+            index_basic_type_of_cell_ = rail_spec_of_cell[0]
+            rotation_cell_ = rail_spec_of_cell[1]
+            if index_basic_type_of_cell_ < 0 or index_basic_type_of_cell_ >= len(rail_env_transitions.transitions):
+                print("ERROR - invalid rail_spec_of_cell type=", index_basic_type_of_cell_)
+            basic_type_of_cell_ = rail_env_transitions.transitions[index_basic_type_of_cell_]
+            effective_transition_cell = rail_env_transitions.rotate_transition(basic_type_of_cell_, rotation_cell_)
+            rail.set_transitions((r, c), effective_transition_cell)
+
+    # One rail, so no right or left rails  
+    right_rails = [(0,0)]
+    left_rails = [(0,0)]
+    down_rails = [(0,0)]
+    up_rails = [(0,0)]
+
+    # No high velocity lines, so make a (0,0) position
+    av_line = (0,0)
+
+Then is important to specify the stations:
 
 .. code-block:: python
 
-    # Relative weights of each cell type to be used by the random rail generators.
-    transition_probability = [1.0,  # empty cell - Case 0
-                              1.0,  # Case 1 - straight
-                              1.0,  # Case 2 - simple switch
-                              0.3,  # Case 3 - diamond drossing
-                              0.5,  # Case 4 - single slip
-                              0.5,  # Case 5 - double slip
-                              0.2,  # Case 6 - symmetrical
-                              0.0,  # Case 7 - dead end
-                              0.2,  # Case 8 - turn left
-                              0.2,  # Case 9 - turn right
-                              1.0]  # Case 10 - mirrored switch
-
-    # Example generate a random rail
-    env = RailEnv(width=10,
-                  height=10,
-                  rail_generator=random_rail_generator(
-                            cell_type_relative_proportion=transition_probability
-                            ),
-                  number_of_agents=3,
-                  obs_builder_object=TreeObsForRailEnv(max_depth=2))
-    env.reset()
+    quarto_station = Station('Quarto', position = (3, 2), capacity = 2, min_wait_time = [2, 2, 1], 
+	additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)
+    quinto_station = Station('Quinto', position = (3, 9), capacity = 2, min_wait_time = [2, 2, 1], 
+	additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)    
 
 Environments can be rendered using the utils.rendertools utilities, for example:
 
