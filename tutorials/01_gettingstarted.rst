@@ -178,32 +178,139 @@ For example, for a 2-agents environment:
 
 .. code-block:: python
 
-    handles = env.get_agent_handles()
-    action_dict = {handles[0]:0, handles[1]:0}
-    obs, all_rewards, done, _ = env.step(action_dict)
+	# This thing is importand for the RL part, initialize the agent with (state, action) dimension
+	# Initialize the agent with the parameters corresponding to the environment and observation_builder
+	controller = RandomAgent(218, env.action_space[0])
 
-where 'obs', 'all_rewards', and 'done' are also dictionary indexed by the agents'
-handles, whose values correspond to the relevant observations, rewards and terminal
-status for each agent. Further, the 'dones' dictionary returns an extra key
-'__all__' that is set to True after all agents have reached their goals.
+	# Lets try to enter with all of these agents at the same time
+	action_dict = dict()
+
+	# Now that you have seen these novel concepts that were introduced you will realize that agents don't need to take
+	# an action at every time step as it will only change the outcome when actions are chosen at cell entry.
+	# Therefore the environment provides information about what agents need to provide an action in the next step.
+	# You can access this in the following way.
+
+	# Chose an action for each agent
+	for a in range(env.get_num_agents()):
+		action = controller.act(0)
+		action_dict.update({a: action})
+	# Do the environment step
+
+	observations ,rewards, dones ,information = env.step(action_dict)
+
+	print("\n The following agents can register an action:")
+	print("========================================")
+	for info in information['action_required']:
+		print("Agent {} needs to submit an action.".format(info))
+
+	# We recommend that you monitor the malfunction data and the action required in order to optimize your training
+	# and controlling code.
+
+	# Let us now look at an episode playing out 
+
+	print("\nStart episode...")
+
+	# Reset the rendering system
+	env_renderer.reset()
+
+	# Here you can also further enhance the provided observation by means of normalization
+	# See training navigation example in the baseline repository
+
+	score = 0
+	# Run episode
+	frame_step = 0
+
+	# How many episodes
+	n_trials = 3
+
+	os.makedirs("output/frames", exist_ok=True)
+
+	for trials in range(1, n_trials + 1):
+
+		# Reset environment and get initial observations for all agents
+		obs, info = env.reset()
+		for idx in range(env.get_num_agents()):
+			tmp_agent = env.agents[idx]
+			tmp_agent.speed_counter.speed = 1 / (idx + 1)
+		env_renderer.reset()
+		# Here you can also further enhance the provided observation by means of normalization
+		# See training navigation example in the baseline repository
+
+		score = 0
+		# Run episode (one day long, 1 step is 1 minute)
+		for step in range(1440):
+
+			env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
+
+		# Here define the actions to do
+
+			# Chose an action for each agent in the environment
+			# If not interruption, the actions to do are stored in a matrix
+			#       - each row of the matrix is a train
+			#       - each column represent the action the train has to do at each time instant
+
+			print('=================================')
+			print('Elapsed time is', step, 'minutes')   # DEBUG
+
+			# DEBUG print the velocities
+			for agent in env.agents:
+				i_agent = agent.handle
+				print('Velocity of the', i_agent, 'agent is', agent.speed_counter.speed)
+
+			for a in range(env.get_num_agents()):
+				if step >= timetable[a][1][0]:
+					if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+						action = actions_scheduled[a][step - timetable[a][1][0]]
+					# choose random from all the possible actions
+					else:
+						action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
+							RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
+					action_dict.update({a: action})
+			# Environment step which returns the observations for all agents, their corresponding
+			# reward and whether their are done
+			next_obs, all_rewards, done, _ = env.step(action_dict)
+
+			'''
+			print('================================')
+			print(env.agents[0])
+			print(env.agents[1])
+			print(timetable)
+			print('================================')
+			'''
+
+			env_renderer.render_env(show=True, show_observations=False, show_predictions=False)
+
+			# Update replay buffer and train agent
+			for a in range(env.get_num_agents()):
+				controller.step((obs[a], action_dict[a], all_rewards[a], next_obs[a], done[a]))
+				score += all_rewards[a]
+			obs = next_obs.copy()
+			if done['__all__']:
+				break
+		print('Episode Nr. {}\t Score = {}'.format(trials, score))
+
+	where 'obs', 'all_rewards', and 'done' are also dictionary indexed by the agents'
+	handles, whose values correspond to the relevant observations, rewards and terminal
+	status for each agent. Further, the 'dones' dictionary returns an extra key
+	'__all__' that is set to True after all agents have reached their goals.
 
 
-In the specific case a TreeObsForRailEnv observation builder is used, it is
-possible to print a representation of the returned observations with the
-following code. Also, tree observation data is displayed by RenderTool by default.
+	In the specific case a TreeObsForRailEnv observation builder is used, it is
+	possible to print a representation of the returned observations with the
+	following code. Also, tree observation data is displayed by RenderTool by default.
 
-.. code-block:: python
+	.. code-block:: python
 
-    for i in range(env.get_num_agents()):
-        env.obs_builder.util_print_obs_subtree(
-                tree=obs[i],
-                )
+	    for i in range(env.get_num_agents()):
+		env.obs_builder.util_print_obs_subtree(
+			tree=obs[i],
+			)
 
 The complete code for this part of the Getting Started guide can be found in
 
-* `examples/simple_example_1.py <https://gitlab.aicrowd.com/flatland/flatland/blob/master/examples/simple_example_1.py>`_
-* `examples/simple_example_2.py <https://gitlab.aicrowd.com/flatland/flatland/blob/master/examples/simple_example_2.py>`_
-
+*`main.py`_
+*`configuration.py`_
+*`examples/new_example_1.py`_
 
 Part 2 : Training a Simple an Agent on Flatland
 ---------------------------------------------------------
