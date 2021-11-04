@@ -308,9 +308,9 @@ For example, for a 2-agents environment:
 
 The complete code for this part of the Getting Started guide can be found in
 
-*`main.py`_
-*`configuration.py`_
-*`examples/new_example_1.py`_
+*`main.py <https://github.com/LucaFronda/Flatland_Luca_Fronda/blob/flatland_v_3_deterministic/main.py>`_
+*`configuration.py <https://github.com/LucaFronda/Flatland_Luca_Fronda/blob/flatland_v_3_deterministic/configuration.py>`_
+*`examples/new_example_1.py <https://github.com/LucaFronda/Flatland_Luca_Fronda/blob/flatland_v_3_deterministic/examples/new_example_1.py>`_
 
 Part 2 : Training a Simple an Agent on Flatland
 ---------------------------------------------------------
