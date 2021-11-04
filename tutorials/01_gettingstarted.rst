@@ -312,7 +312,7 @@ The complete code for this part of the Getting Started guide can be found in
 *`configuration.py <https://github.com/LucaFronda/Flatland_Luca_Fronda/blob/flatland_v_3_deterministic/configuration.py>`_
 *`examples/new_example_1.py <https://github.com/LucaFronda/Flatland_Luca_Fronda/blob/flatland_v_3_deterministic/examples/new_example_1.py>`_
 
-Part 2 : Training a Simple an Agent on Flatland
+Part 2 : Training a Simple an Agent on Flatland [FOR THE FUTURE]
 ---------------------------------------------------------
 
 This is a brief tutorial on how to train an agent on Flatland.
