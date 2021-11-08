@@ -40,13 +40,12 @@ for i in range(1, len(stations)):
 # each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
 # Each row represent a different train
 
+print('------ Calculating the timetable')
+print()
 timetable = timetable_example
 
 divide_trains_in_station_rails(timetable)
 
-print('=====================================================')
-print('==================  TIMETABLE  ======================')
-print('=====================================================')
 for i in range(len(timetable)):
 	print(timetable[i])
 
@@ -69,6 +68,8 @@ control_timetable(timetable,transition_map_example)
 # We can now initiate the schedule generator with the given speed profiles
 schedule_generator_custom = custom_schedule_generator(timetable = timetable)
 
+print()
+print('------- Calculating the action scheduled')
 actions_scheduled = action_to_do(timetable, transition_map_example)
 
 
