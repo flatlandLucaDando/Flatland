@@ -87,5 +87,6 @@ env.reset()
 env_renderer = RenderTool(env)
 env_renderer.render_env(show=True, show_predictions=False, show_observations=False)
 
+# This function is the seconds the env should be rendered
 time.sleep(5)
 
