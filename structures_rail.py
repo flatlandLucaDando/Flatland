@@ -20,15 +20,17 @@ if i == 1:
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
 
+	av_line = [(0,0)]
+
 if i ==2:
 	# Rails where the direction is right
 	right_rails = []
-	for i in range(10):
-		right_rails.append((5,i+5))
+	for i in range(8):
+		right_rails.append((5,i+6))
 	# Rails where the direction is left
 	left_rails = []
-	for i in range(10):
-		left_rails.append((6,i+5))
+	for i in range(8):
+		left_rails.append((6,i+6))
 
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
