@@ -18,7 +18,9 @@ class Station:
 		# Stations have different importance depending on how much they are big and how much people they transport depending on the time
 		self.importance = importance
 		# Rails of the station
+		print('Im Calculating the rails')
 		self.rails = self.calculate_rails(railway_topology)
+		return
 
 
 	def time_in_station(self, train_velocity):
@@ -35,6 +37,10 @@ class Station:
 		center_of_station = self.position 
 		rail_shape = railway_topology.grid.shape
 
+		print(num_of_rails)
+		print(center_of_station)
+		print(rail_shape)
+
 		#Flag
 		right = False  # Flag to understand where to go right or left
 		north = True    # Flag to understand where to go right or left
@@ -49,10 +55,19 @@ class Station:
 		# Contein the single rail positions
 		single_rail_in_station = []
 
+		# Counter to check the station is well positioned, to avoid the while goes for eternity
+		counter = 0
+
 		# Starting position the center of station
 		current_position = (self.position[0], self.position[1])
 
 		while counter_of_rails < num_of_rails:
+
+			counter += 1
+
+			if counter > 500:
+				raise ImportError('The position of the station, or the capacity should be different, check for the right position or capacity, cant calculate the rails')
+
 			# Horizontal rail
 			if railway_topology.grid[current_position] == 1025:
 				# The starting rail is a rail of the station
