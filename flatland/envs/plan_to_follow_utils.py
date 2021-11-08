@@ -103,6 +103,10 @@ def action_to_do(timetable, railway_topology):
 	# Se due treni nell'intorno di tempo devono stare nella stessa stazione bisogna indirizzarli 
 	# in binari liberi diversi, quindi il passaggio diventa diverso.
 
+	print('INIZIO QUA')
+	print(a_star(railway_topology, timetable[0][0][0], timetable[0][0][1]))
+	print()
+
 	path_result = []
 	# Calculate the path for all the trains
 	for train_i in range (len(timetable)):
@@ -115,6 +119,9 @@ def action_to_do(timetable, railway_topology):
 
 		# Final result for all the trains and train runs
 		path_result.append(path_partial_result)
+
+	for i in range(len(path_result)):
+		print(path_result[i])
 
 
 	# Calculate the actions that have to be done
@@ -352,8 +359,12 @@ def calculate_timetable(convoys, railway_topology):
 
 				# Adding the precedence time 
 				if stations != (num_of_stations - 1):
-					# sum of time needed, the precedence time and the waiting time at the station
-					single_train_run.append(int(time_needed + single_train_run[stations] + single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time[0]))
+					print(single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time, single_train_run[0])
+					if len(single_train_run) == 1 and type(single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time) == int:
+						single_train_run.append(int(time_needed + single_train_run[0] + single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time))
+					else:
+						# sum of time needed, the precedence time and the waiting time at the station
+						single_train_run.append(int(time_needed + single_train_run[stations] + single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time[0]))
 
 			single_convoy.append(stations_to_stop_position)
 			single_convoy.append(single_train_run)
