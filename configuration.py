@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_num = 2
+example_num = 0
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -142,6 +142,50 @@ if example_num == 2:
 	# Adding the train runs to the convoys
 	R1079_convoy.add_train_run(train_run_0)
 	R1079_convoy.add_train_run(train_run_2)
+	R1078_convoy.add_train_run(train_run_1)
+
+	# Generating the timetable
+	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
+	timetable_example = calculate_timetable(convoys, rail)
+
+
+'''
+###############################################################
+######################   EXAMPLE 1  #########################
+###############################################################
+'''
+
+if example_num == 0:
+
+	# Import the examples
+	from examples.esempio_prova import rail, railway_example, av_line
+
+	stazione_prova = Station('Prova', position = (3,2), capacity = 1, min_wait_time = 1, additional_wait_percent =1, importance = 1, railway_topology = rail)
+	stazione_prova_2 = Station('Prova 2', position = (3, 9), capacity = 1, min_wait_time = 1, additional_wait_percent =1, importance = 1, railway_topology = rail)
+
+	connection_prova = Rail_connection(station_a = stazione_prova, 
+		station_b = stazione_prova_2, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
+
+	linea_prova = Line(type_line = Connection_type.NORMAL_RAIL, 
+		stations = (stazione_prova, stazione_prova_2), stops = (1, 1))
+
+	stations = []
+	stations.append([stazione_prova.position, 0.5])
+	stations.append([stazione_prova_2.position, 0.5])
+
+	# Define the train runs
+	train_run_0 = Train_run(linea_prova, starting_time = 3, from_depot = True)
+	train_run_1 = Train_run(linea_prova, starting_time = 40, from_depot = True, inverse_train_direction = True)
+
+	# Define the convoys
+	R1079_convoy = Convoy( Type_of_convoy.INTERCITY)
+	R1078_convoy = Convoy( Type_of_convoy.INTERCITY)
+
+	convoys = [R1079_convoy, R1078_convoy]
+
+	# Adding the train runs to the convoys
+	R1079_convoy.add_train_run(train_run_0)
 	R1078_convoy.add_train_run(train_run_1)
 
 	# Generating the timetable
