@@ -1,5 +1,4 @@
 import numpy as np
-import graphviz
 import os
 # Import the structures
 from flatland.data_structures.convoy import Convoy, Type_of_convoy
@@ -10,7 +9,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_num = 0
+example_num = 1
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -45,6 +44,7 @@ if example_num == 1:
 	train_run_0 = Train_run(genova_urbana, starting_time = 3, from_depot = True)
 	train_run_1 = Train_run(genova_urbana, starting_time = 10, from_depot = True, inverse_train_direction = True)
 	train_run_2 = Train_run(genova_urbana, starting_time = 40, inverse_train_direction = True)
+	train_run_3 = Train_run(genova_urbana, starting_time = 70)
 
 	# Define the convoys
 	R1079_convoy = Convoy( Type_of_convoy.INTERCITY)
@@ -56,6 +56,7 @@ if example_num == 1:
 	R1079_convoy.add_train_run(train_run_0)
 	R1079_convoy.add_train_run(train_run_2)
 	R1078_convoy.add_train_run(train_run_1)
+	R1078_convoy.add_train_run(train_run_3)
 
 	# Generating the timetable
 	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
@@ -151,7 +152,7 @@ if example_num == 2:
 
 '''
 ###############################################################
-######################   EXAMPLE 1  #########################
+######################   EXAMPLE 0  #########################
 ###############################################################
 '''
 
