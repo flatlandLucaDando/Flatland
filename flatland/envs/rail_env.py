@@ -50,10 +50,10 @@ class RailEnv(Environment):
      -   2: move to the next cell in front of the agent; if the agent was not moving, movement is started
      -   3: turn right at switch and move to the next cell; if the agent was not moving, movement is started
      -   4: stop moving
+     -   5: invert the direction of march
 
     Moving forward in a dead-end cell makes the agent turn 180 degrees and step
     to the cell it came from.
-
 
     The actions of the agents are executed in order of their handle to prevent
     deadlocks and to allow them to learn relative priorities.
@@ -89,8 +89,8 @@ class RailEnv(Environment):
     # Epsilon to avoid rounding errors
     epsilon = 0.01
     # NEW : REW: Sparse Reward
-    alpha = 0
-    beta = 0
+    alpha = 0.1
+    beta = 10
     step_penalty = -1 * alpha
     global_reward = 1 * beta
     invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
@@ -193,7 +193,7 @@ class RailEnv(Environment):
         self.num_resets = 0
         self.distance_map = DistanceMap(self.agents, self.height, self.width)
 
-        self.action_space = [5]
+        self.action_space = [6]
 
         self._seed()
         if random_seed:
@@ -394,6 +394,7 @@ class RailEnv(Environment):
 
         # Target Reached
         if self._elapsed_steps >= target_time:
+            # agent.target = [agent.target[0] - 1, agent.target[1]]
             st_signals.target_reached = env_utils.fast_position_equal(agent.position, agent.target)
         else:
             st_signals.target_reached = False
@@ -412,12 +413,18 @@ class RailEnv(Environment):
         ----------
         agent : EnvAgent
         '''
+
+
         reward = None
         # agent done? (arrival_time is not None)
         if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
-            reward = min(agent.latest_arrival - agent.arrival_time, 0)
+            reward = 1
+            i_agent = agent.handle
+            self.dones[i_agent] = True
+            # DELAY
+            #reward = min(agent.latest_arrival - agent.arrival_time, 0)
 
         # Agents not done (arrival_time is None)
         else:
@@ -428,7 +435,9 @@ class RailEnv(Environment):
 
             # Departed but never reached
             if (agent.state.is_on_map_state()):
-                reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
+                reward = -0.5
+                # DELAY
+                #reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
         
         return reward
 
@@ -450,7 +459,7 @@ class RailEnv(Environment):
         action = action_preprocessing.preprocess_moving_action(action, self.rail, current_position, current_direction)
 
         # Check transitions, bounts for executing the action in the given position and directon
-        if not check_valid_action(action, self.rail, current_position, current_direction):
+        if action.is_moving_action() and not check_valid_action(action, self.rail, current_position, current_direction):
             action = RailEnvActions.STOP_MOVING
 
         return action
@@ -502,7 +511,7 @@ class RailEnv(Environment):
 
     def handle_done_state(self, agent):
         """ Any updates to agent to be made in Done state """
-        if agent.state == TrainState.DONE:
+        if agent.state == TrainState.DONE and agent.arrival_time is None:
             agent.arrival_time = self._elapsed_steps
             if self.remove_agents_at_target:
                 agent.position = None
@@ -561,14 +570,18 @@ class RailEnv(Environment):
 
             # Train's next position can change if current stopped in a fractional speed or train is at cell's exit
 
-            position_update_allowed = (agent.speed_counter.is_cell_exit or agent.state == TrainState.STOPPED)
+            position_update_allowed = agent.speed_counter.is_cell_exit and \
+                          not agent.malfunction_handler.malfunction_down_counter > 0
+            #position_update_allowed = (agent.speed_counter.is_cell_exit or agent.state == TrainState.STOPPED)
 
             # Calculate new position
+            # Keep agent in same place if already done
+            if agent.state == TrainState.DONE:
+                new_position, new_direction = agent.position, agent.direction
             # Add agent to the map if not on it yet
-            if agent.position is None and agent.action_saver.is_action_saved:
+            elif agent.position is None and agent.action_saver.is_action_saved:
                 new_position = agent.initial_position
-                new_direction = agent.initial_direction
-                
+                new_direction = agent.initial_direction       
             # If movement is allowed apply saved action independent of other agents
             elif agent.action_saver.is_action_saved and position_update_allowed:
                 saved_action = agent.action_saver.saved_action
@@ -588,7 +601,7 @@ class RailEnv(Environment):
             # This is for storing and later checking for conflicts of agents trying to occupy same cell                                                    
             self.motionCheck.addAgent(i_agent, agent.position, new_position)
 
-        # Find conflicts between trains trying to occupy same cell
+        # Find conflicts between trains trying to occupy same cell  TODO controlla i bug
         self.motionCheck.find_conflicts()
         
         for agent in self.agents:
@@ -598,11 +611,16 @@ class RailEnv(Environment):
             if agent.malfunction_handler.in_malfunction:
                 movement_allowed = False
             else:
+                # TODO check how the check motion is gestito, fai si che una reverse action sia sempre 
+                # possibile ma attenzione quando c'è un treno vicino
                 if action == RailEnvActions.REVERSE:
                     movement_allowed = True
                 else:
                     movement_allowed = self.motionCheck.check_motion(i_agent, agent.position) 
 
+
+            movement_inside_cell = agent.state == TrainState.STOPPED and not agent.speed_counter.is_cell_exit
+            movement_allowed = movement_allowed or movement_inside_cell
 
             # Fetch the saved transition data
             agent_transition_data = temp_transition_data[i_agent]
@@ -631,8 +649,7 @@ class RailEnv(Environment):
             env_utils.state_position_sync_check(agent.state, agent.position, agent.handle)
 
             # Handle done state actions, optionally remove agents
-            if np.equal(agent.position, agent.target).all():  # If the ending time is reached remove the agent
-                self.handle_done_state(agent)
+            self.handle_done_state(agent)
             
             have_all_agents_ended &= (agent.state == TrainState.DONE)
 

@@ -217,6 +217,11 @@ def check_rail_road_direction(rail: GridTransitionMap, timetable):
         # Consider the a_star result to calculate the direction
         path_result[i] = (a_star(rail,timetable[i][0][0],timetable[i][0][1]))
 
+
+        if path_result[i] == []:
+            agents_direction = 1
+            continue
+
         difference_x = path_result[i][0][1] - path_result[i][1][1]
         difference_y = path_result[i][0][0] - path_result[i][1][0]
         if difference_y == 1:

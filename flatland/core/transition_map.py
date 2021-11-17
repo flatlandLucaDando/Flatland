@@ -643,6 +643,8 @@ class GridTransitionMap(TransitionMap):
     def check_transition_is_possible(self, previous_position, current_position, new_position):
         # Finding direction of the agent
 
+        #print(left_rails, right_rails)
+
         new_dir = get_direction(current_position, new_position)
         if previous_position is not None:
             current_dir = get_direction(previous_position, current_position)
