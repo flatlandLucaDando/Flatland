@@ -3,6 +3,7 @@ from flatland.core.grid.grid_utils import Vec2dOperations as Vec2d
 # Station
 class Station:
 
+	# TODO metti valori precisi per min wait time (lis)
 	def __init__(self, name, position, capacity, min_wait_time, additional_wait_percent, importance, railway_topology):
 		# Name of the station (e.g. Milano, Torino etc etc)
 		self.name = name
@@ -42,10 +43,6 @@ class Station:
 		num_of_rails = self.capacity
 		center_of_station = self.position 
 		rail_shape = railway_topology.grid.shape
-
-		print(num_of_rails)
-		print(center_of_station)
-		print(rail_shape)
 
 		#Flag
 		right = False  # Flag to understand where to go right or left

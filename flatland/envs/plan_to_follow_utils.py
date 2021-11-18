@@ -129,7 +129,6 @@ def action_to_do(timetable, railway_topology):
         # Final result for all the trains and train runs
         path_result.append(path_partial_result)
 
-
     # Calculate the actions that have to be done
     actions_to_do = []
     for train_i in range (len(timetable)):
