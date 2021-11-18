@@ -1,4 +1,4 @@
-i = 2
+i = 3
 # Example generate a rail given a manual specification,
 # a map of tuples (cell_type, rotation)
 
@@ -32,6 +32,15 @@ if i ==2:
 	for i in range(8):
 		left_rails.append((6,i+6))
 
+	down_rails = [(0,0)]
+	up_rails = [(0,0)]
+
+	av_line = [(0,0)]
+
+if i == 3:
+	# One rail, so no right or left rails  
+	right_rails = [(0,0)]
+	left_rails = [(0,0)]
 	down_rails = [(0,0)]
 	up_rails = [(0,0)]
 

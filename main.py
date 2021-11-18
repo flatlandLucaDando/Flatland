@@ -58,7 +58,7 @@ def format_action_prob(action_probs):
 
 
 # Flag active in case of interruptions
-interruption = False
+interruption = True
 
 # Flag to select the agent ----> multi agent or external controller
 multi_agent = True
@@ -167,7 +167,11 @@ env.reset()
 
 # If I want I can delay a specific train a specific time
 
-#delay_a_train(delay = 5, train = env.agents[0], delay_time = 15, time_of_train_generation = 3, actions = actions_scheduled)
+delay_a_train(delay = 250, train = env.agents[1], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
+delay_a_train(delay = 250, train = env.agents[2], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
+
+for i in range(len(actions_scheduled)):
+    print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
                           screen_height=1080 * 2,
@@ -293,7 +297,7 @@ checkpoint_interval = 100
 
 training_id = '0' 
 
-render = False
+render = True
 
 os.makedirs("output/frames", exist_ok=True)
 
@@ -362,17 +366,17 @@ for episode_idx in range(n_episodes + 1):
                 env.dones[a] = True
             if env.agents[a].state == TrainState.MALFUNCTION:
                 interruption = True
-            if not multi_agent and interruption:
+            if not multi_agent and interruption: # debug 
                 break
             if step >= timetable[a][1][0]:
-                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+                # This is for debug
+                if a != 0:
                     action = actions_scheduled[a][step - timetable[a][1][0]]
-                # choose random from all the possible actions
-                else:
-                    action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
-                        RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
+                #
+                elif not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+                    action = actions_scheduled[a][step - timetable[a][1][0]]
 
-                if interruption:
+                elif interruption:
                     if multi_agent:
                         if info['action_required'][a]:
                             update_values[a] = True
@@ -387,6 +391,10 @@ for episode_idx in range(n_episodes + 1):
                             action = 0
                     else:
                         action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
+                        RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
+                # choose random from all the possible actions
+                else:
+                    action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
                         RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
 
                 action_dict.update({a: action})
@@ -495,4 +503,4 @@ for episode_idx in range(n_episodes + 1):
                 format_action_prob(action_probs)
             ), end=" ")
 
-    interruption = False
+    # interruption = False

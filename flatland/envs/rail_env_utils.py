@@ -56,7 +56,7 @@ def delay_a_train(delay: int, delay_time: int, time_of_train_generation: int, ac
         actions_scheduled[i] = actions[i_agent][i]
     # Delay the train (STOP)  
     for i in range(delay):
-        if (i + delay_time - time_of_train_generation) < 0 or (i + delay_time - time_of_train_generation) > len(actions[i_agent]):
+        if (i + delay_time - time_of_train_generation) < 0 or (delay_time - time_of_train_generation) > len(actions[i_agent]):
             raise ImportError('The train is not present in the environment, check the delay time')
         actions_scheduled[i + delay_time - time_of_train_generation] = RailEnvActions.STOP_MOVING
     # Copy the actions scheduled for the train after the delay
