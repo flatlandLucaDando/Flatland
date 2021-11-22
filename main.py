@@ -51,6 +51,8 @@ def format_action_prob(action_probs):
 
     return buffer
 
+# Flag for the first training
+training0 = True
 
 # Flag active in case of interruptions
 interruption = True
@@ -168,8 +170,8 @@ for i in range(len(actions_scheduled)):
     print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
-                          screen_height=1080 * 2,
-                          screen_width=1080 * 3)  # Adjust these parameters to fit your resolution
+                          screen_height=480,
+                          screen_width=720)  # Adjust these parameters to fit your resolution
 
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
@@ -340,10 +342,10 @@ for episode_idx in range(n_episodes + 1):
         inference_timer.start() 
 
         # TRAINING
-        if step > 2:
-            env.agents[1].malfunction_handler.malfunction_down_counter = 200
-            env.agents[2].malfunction_handler.malfunction_down_counter = 200
-
+        if step >= 3:
+            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+ 
     # Here define the actions to do
 
         # Chose an action for each agent in the environment
@@ -453,6 +455,8 @@ for episode_idx in range(n_episodes + 1):
         obs = next_obs.copy()
         if done['__all__']:
             break
+        if training0 and env.dones[0] == True: #break if the first agent has done
+            break
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
 
     if multi_agent:
@@ -500,3 +504,4 @@ for episode_idx in range(n_episodes + 1):
             ), end=" ")
 
     # interruption = False
+se

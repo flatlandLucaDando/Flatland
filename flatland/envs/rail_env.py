@@ -420,7 +420,7 @@ class RailEnv(Environment):
         if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
-            reward = 1
+            reward = 10
             i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
@@ -490,7 +490,18 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
-        pass
+        action = self.agents[i_agent].action_saver.saved_action
+
+        reward = None
+
+        reward = -0.1
+
+        if action == RailEnvActions.REVERSE:
+            reward += -0.5
+        if action == RailEnvActions.STOP_MOVING:
+            reward += -0.2
+
+        return reward
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 
