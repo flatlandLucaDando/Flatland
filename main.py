@@ -168,8 +168,8 @@ for i in range(len(actions_scheduled)):
     print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
-                          screen_height=1080 * 2,
-                          screen_width=1080 * 3)  # Adjust these parameters to fit your resolution
+                          screen_height=480,
+                          screen_width=700)  # Adjust these parameters to fit your resolution
 
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
@@ -472,7 +472,7 @@ for episode_idx in range(n_episodes + 1):
 
         # Print logs
         if episode_idx % checkpoint_interval == 0:
-            torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
+           # torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
 
             '''
             if save_replay_buffer:

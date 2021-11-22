@@ -490,7 +490,10 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
-        pass
+        reward = None
+        reward = -0.1
+        return reward
+        
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 
