@@ -41,8 +41,6 @@ from reinforcement_learning.dddqn_policy import DDDQNPolicy
 from parameters import training_params, obs_params
 
 
-
-
 def format_action_prob(action_probs):
     action_probs = np.round(action_probs, 3)
     actions = ["↻", "←", "↑", "→", "◼", "↓"]
@@ -52,9 +50,6 @@ def format_action_prob(action_probs):
         buffer += action + " " + "{:.3f}".format(action_prob) + " "
 
     return buffer
-
-
-
 
 
 # Flag active in case of interruptions
@@ -116,8 +111,6 @@ print()
 print('------- Calculating the action scheduled')
 actions_scheduled = action_to_do(timetable, transition_map_example)
 
-print(transition_map_example)
-
 # DEBUG
 for i in range(len(actions_scheduled)):
     print()
@@ -166,16 +159,17 @@ env.reset()
 
 
 # If I want I can delay a specific train a specific time
-
+'''
 delay_a_train(delay = 250, train = env.agents[1], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
 delay_a_train(delay = 250, train = env.agents[2], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
+'''
 
 for i in range(len(actions_scheduled)):
     print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
                           screen_height=1080 * 2,
-                          screen_width=1080 * 2)  # Adjust these parameters to fit your resolution
+                          screen_width=1080 * 3)  # Adjust these parameters to fit your resolution
 
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
@@ -343,8 +337,13 @@ for episode_idx in range(n_episodes + 1):
         if video_save:
             env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
 
+        inference_timer.start() 
 
-        inference_timer.start()
+        # TRAINING
+        if step > 2:
+            env.agents[1].malfunction_handler.malfunction_down_counter = 200
+            env.agents[2].malfunction_handler.malfunction_down_counter = 200
+
     # Here define the actions to do
 
         # Chose an action for each agent in the environment
@@ -369,13 +368,10 @@ for episode_idx in range(n_episodes + 1):
             if not multi_agent and interruption: # debug 
                 break
             if step >= timetable[a][1][0]:
-                # This is for debug
-                if a != 0:
+                # Normal plan to follow
+                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
                     action = actions_scheduled[a][step - timetable[a][1][0]]
-                #
-                elif not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
-                    action = actions_scheduled[a][step - timetable[a][1][0]]
-
+                # Interruption
                 elif interruption:
                     if multi_agent:
                         if info['action_required'][a]:

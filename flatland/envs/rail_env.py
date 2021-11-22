@@ -90,7 +90,7 @@ class RailEnv(Environment):
     epsilon = 0.01
     # NEW : REW: Sparse Reward
     alpha = 0.1
-    beta = 10
+    beta = 1
     step_penalty = -1 * alpha
     global_reward = 1 * beta
     invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
@@ -571,7 +571,9 @@ class RailEnv(Environment):
             # Train's next position can change if current stopped in a fractional speed or train is at cell's exit
 
             position_update_allowed = agent.speed_counter.is_cell_exit and \
-                          not agent.malfunction_handler.malfunction_down_counter > 0
+                        not agent.malfunction_handler.malfunction_down_counter > 0 and \
+                        not preprocessed_action == RailEnvActions.STOP_MOVING                            
+
             #position_update_allowed = (agent.speed_counter.is_cell_exit or agent.state == TrainState.STOPPED)
 
             # Calculate new position
