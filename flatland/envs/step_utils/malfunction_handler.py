@@ -20,8 +20,18 @@ class MalfunctionHandler:
     def in_malfunction(self):
         return self._malfunction_down_counter > 0
     
+    @in_malfunction.setter
+    def in_malfunction(self, value):
+        self._in_malfunction = value
+        return self._malfunction_down_counter > 0
+    
     @property
     def malfunction_counter_complete(self):
+        return self._malfunction_down_counter == 0
+
+    @malfunction_counter_complete.setter
+    def malfunction_counter_complete(self, value):
+        self._malfunction_counter_complete = value
         return self._malfunction_down_counter == 0
 
     @property
