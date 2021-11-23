@@ -52,7 +52,8 @@ def format_action_prob(action_probs):
     return buffer
 
 # Flag for the first training
-training0 = True
+training = 'training1.1'
+
 
 # Flag active in case of interruptions
 interruption = True
@@ -342,9 +343,15 @@ for episode_idx in range(n_episodes + 1):
         inference_timer.start() 
 
         # TRAINING
-        if step >= 3:
-            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
-            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+        if step > 2:
+            if training == 'training0':
+                env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
+                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+            if training == 'training1':
+                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+                env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
+            if training == 'training1.1':
+                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
  
     # Here define the actions to do
 
@@ -455,7 +462,10 @@ for episode_idx in range(n_episodes + 1):
         obs = next_obs.copy()
         if done['__all__']:
             break
-        if training0 and env.dones[0] == True: #break if the first agent has done
+        #break if the first agent has done
+        if ((training == 'training0') and env.dones[0] == True) or \
+            ((training == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
+            ((training == 'training1.1') and (env.dones[0] == True) and env.dones[1] == True):
             break
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
 

@@ -7,7 +7,7 @@ import graphviz as gv
 
 class MotionCheck(object):
     """ Class to find chains of agents which are "colliding" with a stopped agent.
-        This is to allow close-packed chains of agents, ie a train of agents travelling
+        This is to allow close-packed chains of agents, ie (e.g.) a train of agents travelling
         at the same speed with no gaps between them,
     """
     def __init__(self):

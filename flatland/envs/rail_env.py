@@ -36,17 +36,24 @@ from structures_rail import av_line
 
 # Penalities 
 epsilon = 0.01
-# NEW : REW: Sparse Reward
 alpha = 0.05
 beta = 1
 step_penality = -1 * alpha
 global_reward = 1 * beta
 invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
+
 stop_penality = -0.5  # penalty for stopping a moving agent
 reverse_penality = -0.5
+
 start_penalty = 0  # penalty for starting a stopped agent
 cancellation_factor = 1
 cancellation_time_buffer = 0
+
+target_reward = 50
+
+# Flag for the training
+training = 'training1.1'
+
 
 
 class RailEnv(Environment):
@@ -431,16 +438,21 @@ class RailEnv(Environment):
         '''
         i_agent = agent.handle
 
-        if i_agent != 0:
-            reward = 0
-            return reward
+        if training == 'training0':
+            if i_agent != 0:
+                reward = 0
+                return reward
+        elif training == 'training1' or training == 'training1.1':
+            if i_agent > 1:
+                reward = 0
+                return reward
 
         reward = None
         # agent done? (arrival_time is not None)
         if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
-            reward = 50
+            reward = target_reward
             i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
@@ -511,11 +523,16 @@ class RailEnv(Environment):
         Update the rewards dict for agent id i_agent for every timestep
         """
         # DEBUG
-        if i_agent != 0:
-            pass
+        if training == 'training0':
+            if i_agent != 0:
+                pass
+        elif training == 'training1' or training == 'training1.1':
+            if i_agent > 1:
+                pass
+
 
         action = self.agents[i_agent].action_saver.saved_action
-        state = self.agents[i_agent].state
+        moving = self.agents[i_agent].moving
 
         reward = None
 
@@ -523,7 +540,7 @@ class RailEnv(Environment):
 
         if action == RailEnvActions.REVERSE:
             reward += reverse_penality
-        if state == TrainState.STOPPED:
+        if not moving:
             reward += stop_penality
         
         self.rewards_dict[i_agent] += reward
