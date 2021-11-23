@@ -287,7 +287,7 @@ eps_end = 0.01
 
 eps_decay = 0.99
 
-max_steps = 225   # 1440 one day
+max_steps = 250   # 1440 one day
 
 checkpoint_interval = 100
 
@@ -504,4 +504,3 @@ for episode_idx in range(n_episodes + 1):
             ), end=" ")
 
     # interruption = False
-se
