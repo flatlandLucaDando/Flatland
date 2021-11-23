@@ -34,6 +34,21 @@ from flatland.envs.step_utils import env_utils
 
 from structures_rail import av_line
 
+# Penalities 
+epsilon = 0.01
+# NEW : REW: Sparse Reward
+alpha = 0.05
+beta = 1
+step_penality = -1 * alpha
+global_reward = 1 * beta
+invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
+stop_penality = -0.5  # penalty for stopping a moving agent
+reverse_penality = -0.5
+start_penalty = 0  # penalty for starting a stopped agent
+cancellation_factor = 1
+cancellation_time_buffer = 0
+
+
 class RailEnv(Environment):
     """
     RailEnv environment class.
@@ -89,12 +104,13 @@ class RailEnv(Environment):
     # Epsilon to avoid rounding errors
     epsilon = 0.01
     # NEW : REW: Sparse Reward
-    alpha = 0.1
+    alpha = 0.05
     beta = 1
     step_penalty = -1 * alpha
     global_reward = 1 * beta
     invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
-    stop_penalty = 0  # penalty for stopping a moving agent
+    stop_penalty = -0.5  # penalty for stopping a moving agent
+    reverse_penality = -0.5
     start_penalty = 0  # penalty for starting a stopped agent
     cancellation_factor = 1
     cancellation_time_buffer = 0
@@ -413,14 +429,18 @@ class RailEnv(Environment):
         ----------
         agent : EnvAgent
         '''
+        i_agent = agent.handle
 
+        if i_agent != 0:
+            reward = 0
+            return reward
 
         reward = None
         # agent done? (arrival_time is not None)
         if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
-            reward = 10
+            reward = 50
             i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
@@ -490,18 +510,23 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
+        # DEBUG
+        if i_agent != 0:
+            pass
+
         action = self.agents[i_agent].action_saver.saved_action
+        state = self.agents[i_agent].state
 
         reward = None
 
-        reward = -0.1
+        reward = step_penality
 
         if action == RailEnvActions.REVERSE:
-            reward += -0.5
-        if action == RailEnvActions.STOP_MOVING:
-            reward += -0.2
-
-        return reward
+            reward += reverse_penality
+        if state == TrainState.STOPPED:
+            reward += stop_penality
+        
+        self.rewards_dict[i_agent] += reward
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 
