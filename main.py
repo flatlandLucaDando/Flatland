@@ -1,3 +1,4 @@
+
 import time
 import numpy as np
 import os
@@ -51,6 +52,12 @@ def format_action_prob(action_probs):
 
     return buffer
 
+def make_a_deterministic_interruption(agent_to_interrupt, interruption_time):
+    state = agent_to_interrupt.state
+    if state == TrainState.MOVING:
+        agent_to_interrupt.malfunction_handler.malfunction_down_counter = interruption_time
+
+
 
 ###### TRAINING PARAMETERS #######
 n_episodes = 500
@@ -60,11 +67,11 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
-training_flag = 'training0'
+training_flag = 'training1'
 # Flag active in case of interruptions
 interruption = True
 # Flag to select the agent ----> multi agent or external controller
@@ -334,16 +341,26 @@ for episode_idx in range(n_episodes + 1):
         inference_timer.start() 
 
         # TRAINING
-        if step > 2:
-            if training_flag == 'training0':
-                env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-            if training_flag == 'training1':
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-                env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
-            if training_flag == 'training1.1':
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
- 
+        """"
+        if training_flag == 'training0':
+            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+        if training_flag == 'training1':
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+            env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
+        if training_flag == 'training1.1':
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+        """
+        if training_flag == 'training0':
+            make_a_deterministic_interruption(env.agents[1], max_steps)
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+        if training_flag == 'training1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+            make_a_deterministic_interruption(env.agents[3], max_steps)
+        if training_flag == 'training1.1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+
+
     # Here define the actions to do
 
         # Chose an action for each agent in the environment

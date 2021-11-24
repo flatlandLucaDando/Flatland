@@ -36,23 +36,23 @@ from structures_rail import av_line
 
 # Penalities 
 epsilon = 0.01
-alpha = 0.05
+alpha = 0.1
 beta = 1
 step_penality = -1 * alpha
 global_reward = 1 * beta
 invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
 
 stop_penality = - 0.1  # penalty for stopping a moving agent
-reverse_penality = -0.1
+reverse_penality = - 0.5
 
 start_penalty = 0  # penalty for starting a stopped agent
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
-target_reward = 10
+target_reward = 20
 
 # Flag for the training
-training = 'training0'
+training = 'training1'
 
 
 
@@ -523,27 +523,25 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
+        if training == 'training0' and i_agent != 0:
+            return
+        elif (training == 'training1' or training == 'training1.1') and i_agent > 1:
+            return
+
         action = self.agents[i_agent].action_saver.saved_action
         moving = self.agents[i_agent].moving
         state = self.agents[i_agent].state
 
         reward = None
 
-        if training == 'training0':
-            if i_agent != 0:
-                return
-            else:
-                reward = step_penality
+        reward = step_penality
 
-                if action == RailEnvActions.REVERSE:
-                    reward += reverse_penality
-                if not moving or state == TrainState.STOPPED:
-                    reward += stop_penality
-                
-                self.rewards_dict[i_agent] += reward
-        elif training == 'training1' or training == 'training1.1':
-            if i_agent > 1:
-                return
+        if action == RailEnvActions.REVERSE:
+            reward += reverse_penality
+        if not moving or state == TrainState.STOPPED:
+            reward += stop_penality
+        
+        self.rewards_dict[i_agent] += reward
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 

@@ -152,7 +152,7 @@ class EnvAgent:
         """ Create a list of EnvAgent from lists of positions, directions and targets
         """
 
-        print(line.agent_directions)
+        #print(line.agent_directions)
 
         num_agents = len(line.agent_positions)
         
