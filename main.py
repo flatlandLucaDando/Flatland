@@ -51,18 +51,27 @@ def format_action_prob(action_probs):
 
     return buffer
 
+
+###### TRAINING PARAMETERS #######
+n_episodes = 500
+eps_start = 1
+eps_end = 0.01
+eps_decay = 0.99
+max_steps = 250     # 1440 one day
+checkpoint_interval = 100
+training_id = '0' 
+render = False
+
+######### FLAGS ##########
 # Flag for the first training
-training = 'training1.1'
-
-
+training_flag = 'training0'
 # Flag active in case of interruptions
 interruption = True
-
 # Flag to select the agent ----> multi agent or external controller
 multi_agent = True
-
 # Flag to save the video or not
 video_save = False
+
 
 # The specs for the custom railway generation are taken from structures.py file
 specs = railway_example
@@ -155,7 +164,8 @@ env = RailEnv(  width= widht,
                 malfunction_generator = malfunction_generator,
                 obs_builder_object=Observer,
                 remove_agents_at_target=True,
-                record_steps=True
+                record_steps=True,
+                max_episode_steps = max_steps - 1
                 )
 
 env.reset()
@@ -277,25 +287,6 @@ score = 0
 # Run episode
 frame_step = 0
 
-# How many episodes
-
-# TODO capisci come importare veramente sta roba
-n_episodes = 500
-
-eps_start = 1
-
-eps_end = 0.01
-
-eps_decay = 0.99
-
-max_steps = 250   # 1440 one day
-
-checkpoint_interval = 100
-
-training_id = '0' 
-
-render = True
-
 os.makedirs("output/frames", exist_ok=True)
 
 for episode_idx in range(n_episodes + 1):
@@ -344,13 +335,13 @@ for episode_idx in range(n_episodes + 1):
 
         # TRAINING
         if step > 2:
-            if training == 'training0':
+            if training_flag == 'training0':
                 env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
                 env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-            if training == 'training1':
+            if training_flag == 'training1':
                 env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
                 env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
-            if training == 'training1.1':
+            if training_flag == 'training1.1':
                 env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
  
     # Here define the actions to do
@@ -452,7 +443,7 @@ for episode_idx in range(n_episodes + 1):
                     agent_obs[agent] = normalize_observation(next_obs[agent], observation_tree_depth, observation_radius=observation_radius)
                     preproc_timer.end()
 
-            score += all_rewards[agent]
+                score += all_rewards[agent]
 
             nb_steps = step
         else:
@@ -463,9 +454,9 @@ for episode_idx in range(n_episodes + 1):
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training == 'training0') and env.dones[0] == True) or \
-            ((training == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training == 'training1.1') and (env.dones[0] == True) and env.dones[1] == True):
+        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
+            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
+            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
             break
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
 

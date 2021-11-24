@@ -17,7 +17,7 @@ class AgentTransitionData:
 def fast_isclose(a, b, rtol):
     return (a < (b + rtol)) or (a < (b - rtol))
 
-def fast_position_equal(pos_1: (int, int), pos_2: (int, int)) -> bool:
+def fast_position_equal(pos_1, pos_2) -> bool:
     if pos_1 is None:
         return False
     else:

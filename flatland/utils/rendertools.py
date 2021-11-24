@@ -679,7 +679,7 @@ class RenderLocal(RenderBase):
                 # Show an agent even if it hasn't already started
                 if agent.position is None:
                     if show_inactive_agents:
-                        # print("agent ", agent_idx, agent.position, agent.old_position, agent.initial_position)
+                        print("agent ", agent_idx, agent.position, agent.old_position, agent.initial_position)
                         self.gl.set_agent_at(agent_idx, *(agent.initial_position), 
                             agent.initial_direction, agent.initial_direction,
                             is_selected=(selected_agent == agent_idx),

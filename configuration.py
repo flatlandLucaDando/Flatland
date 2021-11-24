@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_num = 'training_1.1'
+example_num = 'training0'
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -316,7 +316,7 @@ if example_num == 0:
 ###############################################################
 '''
 
-if example_num == 'training_0':
+if example_num == 'training0':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 
@@ -361,7 +361,7 @@ if example_num == 'training_0':
 ###############################################################
 '''
 
-if example_num == 'training_1':
+if example_num == 'training1':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 
@@ -412,7 +412,7 @@ if example_num == 'training_1':
 ###############################################################
 '''
 
-if example_num == 'training_1.1':
+if example_num == 'training1.1':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 
