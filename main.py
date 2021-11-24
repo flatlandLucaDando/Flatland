@@ -60,11 +60,11 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
-training_flag = 'training0'
+training_flag = 'training1.1'
 # Flag active in case of interruptions
 interruption = True
 # Flag to select the agent ----> multi agent or external controller

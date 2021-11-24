@@ -36,23 +36,23 @@ from structures_rail import av_line
 
 # Penalities 
 epsilon = 0.01
-alpha = 0.05
+alpha = 0.1
 beta = 1
 step_penality = -1 * alpha
 global_reward = 1 * beta
 invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
 
-stop_penality = - 0.1  # penalty for stopping a moving agent
-reverse_penality = -0.1
+stop_penality = - 0.2  # penalty for stopping a moving agent
+reverse_penality = -0.4
 
 start_penalty = 0  # penalty for starting a stopped agent
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
-target_reward = 10
+target_reward = 50
 
 # Flag for the training
-training = 'training0'
+training = 'training1.1'
 
 
 
@@ -544,6 +544,13 @@ class RailEnv(Environment):
         elif training == 'training1' or training == 'training1.1':
             if i_agent > 1:
                 return
+            else:
+                reward = step_penality
+                if action == RailEnvActions.REVERSE:
+                    reward += reverse_penality
+                if not moving or state == TrainState.STOPPED:
+                    reward += stop_penality
+                self.rewards_dict[i_agent] += reward
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 
