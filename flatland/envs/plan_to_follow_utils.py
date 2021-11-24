@@ -364,7 +364,6 @@ def calculate_timetable(convoys, railway_topology):
 
                 # Adding the precedence time 
                 if stations != (num_of_stations - 1):
-                    print(single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time, single_train_run[0])
                     if len(single_train_run) == 1 and type(single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time) == int:
                         single_train_run.append(int(time_needed + single_train_run[0] + single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time))
                     else:

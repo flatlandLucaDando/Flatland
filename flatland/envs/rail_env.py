@@ -42,17 +42,17 @@ step_penality = -1 * alpha
 global_reward = 1 * beta
 invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
 
-stop_penality = -0.5  # penalty for stopping a moving agent
-reverse_penality = -0.5
+stop_penality = - 0.1  # penalty for stopping a moving agent
+reverse_penality = -0.1
 
 start_penalty = 0  # penalty for starting a stopped agent
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
-target_reward = 50
+target_reward = 10
 
 # Flag for the training
-training = 'training1.1'
+training = 'training0'
 
 
 
@@ -125,6 +125,7 @@ class RailEnv(Environment):
     def __init__(self,
                  width,
                  height,
+                 max_episode_steps,
                  rail_generator=None,
                  line_generator=None,  # : line_gen.LineGenerator = line_gen.random_line_generator(),
                  number_of_agents=2,
@@ -134,7 +135,7 @@ class RailEnv(Environment):
                  remove_agents_at_target=True,
                  random_seed=None,
                  record_steps=False,
-                 close_following=True
+                 close_following=True,
                  ):
         """
         Environment init.
@@ -204,7 +205,7 @@ class RailEnv(Environment):
         self.obs_builder = obs_builder_object
         self.obs_builder.set_env(self)
 
-        self._max_episode_steps: Optional[int] = None
+        self._max_episode_steps: Optional[int] = max_episode_steps
         self._elapsed_steps = 0
 
         self.obs_dict = {}
@@ -351,7 +352,7 @@ class RailEnv(Environment):
             timetable = timetable_generator(self.agents, self.distance_map, 
                                                agents_hints, self.np_random)
 
-            self._max_episode_steps = 999999  # If not selected an "infinite" time is selected
+            #self._max_episode_steps = 250
 
             for agent_i, agent in enumerate(self.agents):
                 agent.earliest_departure = timetable.earliest_departures[agent_i]         
@@ -442,7 +443,7 @@ class RailEnv(Environment):
             if i_agent != 0:
                 reward = 0
                 return reward
-        elif training == 'training1' or training == 'training1.1':
+        if training == 'training1' or training == 'training1.1':
             if i_agent > 1:
                 reward = 0
                 return reward
@@ -522,28 +523,27 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
-        # DEBUG
-        if training == 'training0':
-            if i_agent != 0:
-                pass
-        elif training == 'training1' or training == 'training1.1':
-            if i_agent > 1:
-                pass
-
-
         action = self.agents[i_agent].action_saver.saved_action
         moving = self.agents[i_agent].moving
+        state = self.agents[i_agent].state
 
         reward = None
 
-        reward = step_penality
+        if training == 'training0':
+            if i_agent != 0:
+                return
+            else:
+                reward = step_penality
 
-        if action == RailEnvActions.REVERSE:
-            reward += reverse_penality
-        if not moving:
-            reward += stop_penality
-        
-        self.rewards_dict[i_agent] += reward
+                if action == RailEnvActions.REVERSE:
+                    reward += reverse_penality
+                if not moving or state == TrainState.STOPPED:
+                    reward += stop_penality
+                
+                self.rewards_dict[i_agent] += reward
+        elif training == 'training1' or training == 'training1.1':
+            if i_agent > 1:
+                return
 
     def end_of_episode_update(self, have_all_agents_ended):
         """ 
@@ -558,9 +558,9 @@ class RailEnv(Environment):
                 reward = self._handle_end_reward(agent)
                 self.rewards_dict[i_agent] += reward
                 
-                self.dones[i_agent] = True
+                #self.dones[i_agent] = True
 
-            self.dones["__all__"] = True
+            #self.dones["__all__"] = True
 
     def handle_done_state(self, agent):
         """ Any updates to agent to be made in Done state """
@@ -706,7 +706,16 @@ class RailEnv(Environment):
             # Handle done state actions, optionally remove agents
             self.handle_done_state(agent)
             
-            have_all_agents_ended &= (agent.state == TrainState.DONE)
+            if training == 'training0':
+                if i_agent == 0:
+                    have_all_agents_ended &= (agent.state == TrainState.DONE)
+
+            elif training == 'training1' or training == 'training1.1':
+                if i_agent < 2:
+                    have_all_agents_ended &= (agent.state == TrainState.DONE)
+
+            else:
+                have_all_agents_ended &= (agent.state == TrainState.DONE)
 
             ## Update rewards
             self.update_step_rewards(i_agent)
