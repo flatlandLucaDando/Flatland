@@ -200,6 +200,8 @@ class MotionCheck(object):
                 #        self.G.nodes[vPred]["color"] = "red"
                 self.block_preds(diAgCell.values(), "red")
 
+    # TODO Check for reverse action
+    
     def check_motion(self, iAgent, rcPos):
         """ Returns tuple of boolean can the agent move, and the cell it will move into.
             If agent position is None, we use a dummy position of (-1, iAgent)
@@ -233,9 +235,6 @@ class MotionCheck(object):
             return False
         # The agent wanted to move, and it can
         return True
-
-
-
 
 
 def render(omc:MotionCheck, horizontal=True):

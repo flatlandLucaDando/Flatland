@@ -5,6 +5,7 @@ from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import rail_from_file
 from flatland.envs.line_generators import line_from_file
 from flatland.envs.rail_env import RailEnvActions
+from flatland.envs.step_utils.states import TrainState
 
 
 def load_flatland_environment_from_file(file_name: str,
@@ -80,3 +81,10 @@ def actions_decimal_to_base(base, number_to_convert, num_agents):
         for i in range(zero_to_add):
             actions_to_perform.insert(0,0)
     return actions_to_perform
+
+
+def make_a_deterministic_interruption(agent_to_interrupt, interruption_time):
+    state = agent_to_interrupt.state
+    if state == TrainState.MOVING:
+        agent_to_interrupt.malfunction_handler.malfunction_down_counter = interruption_time
+

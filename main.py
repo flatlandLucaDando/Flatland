@@ -1,3 +1,4 @@
+
 import time
 import numpy as np
 import os
@@ -22,13 +23,13 @@ from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
 # Import the railway generators
 from flatland.envs.custom_rail_generator import rail_custom_generator
-from flatland.envs.rail_env_utils import delay_a_train
+from flatland.envs.rail_env_utils import delay_a_train, make_a_deterministic_interruption
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Import the schedule generators
 from flatland.envs.custom_schedule_generator import custom_schedule_generator
 from flatland.envs.plan_to_follow_utils import action_to_do, divide_trains_in_station_rails, control_timetable
 # Import the different structures needed
-from configuration import railway_example, stations, timetable_example
+from configuration import railway_example, stations, timetable_example, example_training
 # Import the agent class
 from flatland.envs.agent import RandomAgent
 from flatland.envs.step_utils.states import TrainState
@@ -64,7 +65,7 @@ render = True
 
 ######### FLAGS ##########
 # Flag for the first training
-training_flag = 'training1.1'
+training_flag = example_training
 # Flag active in case of interruptions
 interruption = True
 # Flag to select the agent ----> multi agent or external controller
@@ -335,16 +336,26 @@ for episode_idx in range(n_episodes + 1):
         inference_timer.start() 
 
         # TRAINING
-        if step > 2:
-            if training_flag == 'training0':
-                env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-            if training_flag == 'training1':
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-                env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
-            if training_flag == 'training1.1':
-                env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
- 
+        """"
+        if training_flag == 'training0':
+            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+        if training_flag == 'training1':
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+            env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
+        if training_flag == 'training1.1':
+            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
+        """
+        if training_flag == 'training0':
+            make_a_deterministic_interruption(env.agents[1], max_steps)
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+        if training_flag == 'training1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+            make_a_deterministic_interruption(env.agents[3], max_steps)
+        if training_flag == 'training1.1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+
+
     # Here define the actions to do
 
         # Chose an action for each agent in the environment
