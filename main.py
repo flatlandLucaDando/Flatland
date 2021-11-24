@@ -23,13 +23,13 @@ from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
 # Import the railway generators
 from flatland.envs.custom_rail_generator import rail_custom_generator
-from flatland.envs.rail_env_utils import delay_a_train
+from flatland.envs.rail_env_utils import delay_a_train, make_a_deterministic_interruption
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Import the schedule generators
 from flatland.envs.custom_schedule_generator import custom_schedule_generator
 from flatland.envs.plan_to_follow_utils import action_to_do, divide_trains_in_station_rails, control_timetable
 # Import the different structures needed
-from configuration import railway_example, stations, timetable_example
+from configuration import railway_example, stations, timetable_example, example_training
 # Import the agent class
 from flatland.envs.agent import RandomAgent
 from flatland.envs.step_utils.states import TrainState
@@ -52,12 +52,6 @@ def format_action_prob(action_probs):
 
     return buffer
 
-def make_a_deterministic_interruption(agent_to_interrupt, interruption_time):
-    state = agent_to_interrupt.state
-    if state == TrainState.MOVING:
-        agent_to_interrupt.malfunction_handler.malfunction_down_counter = interruption_time
-
-
 
 ###### TRAINING PARAMETERS #######
 n_episodes = 500
@@ -71,7 +65,7 @@ render = True
 
 ######### FLAGS ##########
 # Flag for the first training
-training_flag = 'training1'
+training_flag = example_training
 # Flag active in case of interruptions
 interruption = True
 # Flag to select the agent ----> multi agent or external controller

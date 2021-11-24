@@ -10,14 +10,14 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_num = 'training1'
+example_training = 'training1'
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
 ###############################################################
 '''
 
-if example_num == 1:
+if example_training == 1:
 	# Import the examples
 	from examples.new_example_1 import rail, railway_example, av_line
 	# Define the stations
@@ -102,7 +102,7 @@ if example_num == 1:
 	os.makedirs("output/timetables", exist_ok=True)
 	multiple_dfs(df, 'Validation', 'output/timetables/timetable_test_1.xlsx', 1)
 
-if example_num == 2:
+if example_training == 2:
 	# Import the examples
 	from examples.new_example_2 import rail, railway_example, av_line
 
@@ -173,7 +173,7 @@ if example_num == 2:
 ###############################################################
 '''
 
-if example_num == 3:
+if example_training == 3:
 	# Import the examples
 	from examples.new_example_3 import rail, railway_example, av_line
 
@@ -273,7 +273,7 @@ if example_num == 3:
 ###############################################################
 '''
 
-if example_num == 0:
+if example_training == 0:
 
 	# Import the examples
 	from examples.esempio_prova import rail, railway_example, av_line
@@ -316,7 +316,7 @@ if example_num == 0:
 ###############################################################
 '''
 
-if example_num == 'training0':
+if example_training == 'training0':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 
@@ -361,7 +361,7 @@ if example_num == 'training0':
 ###############################################################
 '''
 
-if example_num == 'training1':
+if example_training == 'training1':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 
@@ -412,7 +412,7 @@ if example_num == 'training1':
 ###############################################################
 '''
 
-if example_num == 'training1.1':
+if example_training == 'training1.1':
 	# Import the examples
 	from examples.ferrovia_luca import rail, railway_example, av_line
 

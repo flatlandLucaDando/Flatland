@@ -34,27 +34,17 @@ from flatland.envs.step_utils import env_utils
 
 from structures_rail import av_line
 
+from configuration import example_training
+
 # Penalities 
-epsilon = 0.01
-alpha = 0.1
-beta = 1
-step_penality = -1 * alpha
-global_reward = 1 * beta
-invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
+step_penality = - 0.1      # a step is time passing, so a penality for each step is needed
+stop_penality = - 0.1      # penality for stopping a moving agent
+reverse_penality = - 0.1   # penality for reversing the march of an agent
 
-stop_penality = - 0.1  # penalty for stopping a moving agent
-reverse_penality = - 0.5
-
-start_penalty = 0  # penalty for starting a stopped agent
-cancellation_factor = 1
-cancellation_time_buffer = 0
-
-target_reward = 20
+target_reward = 10         # reward for an agent reaching his final target
 
 # Flag for the training
-training = 'training1'
-
-
+training = example_training
 
 class RailEnv(Environment):
     """
@@ -631,6 +621,8 @@ class RailEnv(Environment):
             # Keep agent in same place if already done
             if agent.state == TrainState.DONE:
                 new_position, new_direction = agent.position, agent.direction
+            elif agent.state == TrainState.MALFUNCTION:
+                new_position, new_direction = agent.position, agent.direction
             # Add agent to the map if not on it yet
             elif agent.position is None and agent.action_saver.is_action_saved:
                 new_position = agent.initial_position
@@ -666,10 +658,7 @@ class RailEnv(Environment):
             else:
                 # TODO check how the check motion is gestito, fai si che una reverse action sia sempre 
                 # possibile ma attenzione quando c'è un treno vicino
-                if action == RailEnvActions.REVERSE:
-                    movement_allowed = True
-                else:
-                    movement_allowed = self.motionCheck.check_motion(i_agent, agent.position) 
+                movement_allowed = self.motionCheck.check_motion(i_agent, agent.position) 
 
 
             movement_inside_cell = agent.state == TrainState.STOPPED and not agent.speed_counter.is_cell_exit
