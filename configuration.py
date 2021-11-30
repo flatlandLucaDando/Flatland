@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_training = 'training1.1'
+example_training = 'training1'
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################

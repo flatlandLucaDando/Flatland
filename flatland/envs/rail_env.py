@@ -38,10 +38,10 @@ from configuration import example_training
 
 # Penalities 
 step_penality = - 0.1      # a step is time passing, so a penality for each step is needed
-stop_penality = - 0.1      # penality for stopping a moving agent
-reverse_penality = - 0.1   # penality for reversing the march of an agent
+stop_penality = - 0.5      # penality for stopping a moving agent
+reverse_penality = - 0.5   # penality for reversing the march of an agent
 
-target_reward = 10         # reward for an agent reaching his final target
+target_reward = 50         # reward for an agent reaching his final target
 
 # Flag for the training
 training = example_training

@@ -54,14 +54,14 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 500
+n_episodes = 4000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = True
+render = False
 
 ######### FLAGS ##########
 # Flag for the first training
