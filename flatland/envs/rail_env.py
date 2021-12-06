@@ -37,10 +37,11 @@ from structures_rail import av_line
 from configuration import example_training
 
 # Penalities 
-step_penality = - 0.1      # a step is time passing, so a penality for each step is needed
-stop_penality = - 0.1      # penalty for stopping a moving agent
-reverse_penality = - 0.1   # penalty for reversing the march of an agent
-skip_penality = -5         # penalty for skipping a station
+step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
+stop_penality = - 0.1                # penalty for stopping a moving agent
+reverse_penality = - 0.1             # penalty for reversing the march of an agent
+skip_penality = -5                   # penalty for skipping a station
+target_not_reached_penalty = -8      # penalty for not reaching the final target (depot)
 
 target_reward = 10         # reward for an agent reaching his final target
 station_passage_reward = 5 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
@@ -470,7 +471,7 @@ class RailEnv(Environment):
 
             # Departed but never reached
             if (agent.state.is_on_map_state()):
-                reward += -0.5
+                reward += target_not_reached_penalty
                 # DELAY
                 #reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
         
@@ -537,12 +538,12 @@ class RailEnv(Environment):
         reward = None
 
         reward = step_penality
-
+        """
         if action == RailEnvActions.REVERSE:
             reward += reverse_penality
         if not moving or state == TrainState.STOPPED:
             reward += stop_penality
-        
+        """
         self.rewards_dict[i_agent] += reward
 
     def end_of_episode_update(self, have_all_agents_ended, timetable):
