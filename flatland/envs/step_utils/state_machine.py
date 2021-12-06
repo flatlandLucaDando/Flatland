@@ -66,6 +66,7 @@ class TrainStateMachine:
         else:
             self.next_state = TrainState.STOPPED
     
+    # Changes are done here
     def _handle_malfunction(self):
         if self.st_signals.malfunction_counter_complete:
             if self.st_signals.valid_movement_action_given:
