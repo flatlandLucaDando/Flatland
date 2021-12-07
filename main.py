@@ -44,25 +44,23 @@ from parameters import training_params, obs_params
 def calculate_metric(env, timetable):
     positions = env.cur_episode
     prev_station = 0
+    delta = 250
     metric_result = []
     for i_agent in range(env.get_num_agents()):
-        station_vector = [0] * len(timetable[i_agent][0])
+        station_vector = [delta] * len(timetable[i_agent][0])
         for i_station in range(len(timetable[i_agent][0])):
             for step in range(len(positions)):
                 if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
                     prev_station = positions[step][i_agent]
-                    difference = (step**2 - timetable[i_agent][1][i_station]**2)**2 + 0.001
-                    station_vector[i_station] = difference
-        for i in range(len(station_vector)):
-            if station_vector[i] == 0:
-                station_vector[i] = 360
+                    distance_delay = (step**2 - timetable[i_agent][1][i_station]**2)**(1/2)
+                    station_vector[i_station] = distance_delay
         metric_result.append(station_vector)
     metric_sum = sum(sum(x) for x in metric_result)
     dimension = 0
     for i in range(len(metric_result)):
         for j in range(len(metric_result[i])):
             dimension += 1
-    metric_normalized = metric_sum / (360*dimension)
+    metric_normalized = metric_sum / (delta*dimension)
     return metric_normalized
 
 
@@ -358,17 +356,7 @@ for episode_idx in range(n_episodes + 1):
 
         inference_timer.start() 
 
-        # TRAINING
-        """"
-        if training_flag == 'training0':
-            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
-            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-        if training_flag == 'training1':
-            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-            env.agents[3].malfunction_handler.malfunction_down_counter = max_steps
-        if training_flag == 'training1.1':
-            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-        """
+        # Brolken agents
         if training_flag == 'training0':
             make_a_deterministic_interruption(env.agents[1], max_steps)
             make_a_deterministic_interruption(env.agents[2], max_steps)
@@ -377,24 +365,14 @@ for episode_idx in range(n_episodes + 1):
             make_a_deterministic_interruption(env.agents[3], max_steps)
         if training_flag == 'training1.1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
-
-
+            
     # Here define the actions to do
 
         # Chose an action for each agent in the environment
         # If not interruption, the actions to do are stored in a matrix
         #       - each row of the matrix is a train
         #       - each column represent the action the train has to do at each time instant
-        '''
-        print('=================================')
-        print('Elapsed time is', step, 'minutes')   # DEBUG
-
-
-        # DEBUG print the velocities
-        for agent in env.agents:
-            i_agent = agent.handle
-            print('Velocity of the', i_agent, 'agent is', agent.speed_counter.speed)
-        ''' 
+        
         for a in range(env.get_num_agents()):
             if env.agents[a].state == TrainState.DONE:
                 env.dones[a] = True
@@ -429,12 +407,8 @@ for episode_idx in range(n_episodes + 1):
                         RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
 
                 action_dict.update({a: action})
-        '''
-        if not multi_agent and interruption:
-            
-            for agents in range(env.get_num_agents()):
-                action_dict.update({agent : result[agent]})
-        '''
+
+
         inference_timer.end()
 
         # Environment step which returns the observations for all agents, their corresponding
@@ -443,14 +417,6 @@ for episode_idx in range(n_episodes + 1):
         step_timer.start()
         next_obs, all_rewards, done, info = env.step(action_dict)
         step_timer.end()
-
-        '''
-        print('================================')
-        print(env.agents[0])
-        print(env.agents[1])
-        print(timetable)
-        print('================================')
-        '''
 
         # Render an episode at some interval
         if render:
@@ -515,9 +481,8 @@ for episode_idx in range(n_episodes + 1):
 
         # Print logs
         if episode_idx % checkpoint_interval == 0:
-            torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
-
             '''
+            torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
             if save_replay_buffer:
                 policy.save_replay_buffer('./replay_buffers/' + training_id + '-' + str(episode_idx) + '.pkl')
             '''
@@ -545,3 +510,121 @@ for episode_idx in range(n_episodes + 1):
             ), end=" ")
 
     interruption = False
+
+
+
+# Change the position of the interrupted agents
+env.reset()
+
+# NEW CONFIGURATION
+if training_flag == 'training0':
+    env.agents[1].initial_position = (6,10)
+    env.agents[2].initial_position = (5,10)
+
+env.reset()
+
+#################
+##### TEST 1 ####
+#################
+
+for step in range(max_steps):
+    # Broken agents
+    if training_flag == 'training0':
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+    if training_flag == 'training1':
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+        make_a_deterministic_interruption(env.agents[3], max_steps)
+    if training_flag == 'training1.1':
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+    for a in range(env.get_num_agents()):
+        update_values[a] = True
+        action = policy.act(agent_obs[a], eps=eps_start)
+
+        action_count[action] += 1
+        actions_taken.append(action)
+        action_dict.update({a: action})
+        
+        next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    policy.test()
+    
+    if done['__all__']:
+        break
+    #break if the first agent has done
+    if ((training_flag == 'training0') and (env.dones[0] == True)) or \
+        ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
+        ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        break
+
+# metric most possible near to 0
+metric = calculate_metric(env, timetable)
+
+tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+
+print(  'Test 1 concluded:'
+        '\t 🏆 Score: {:.3f}'
+        '\t Agent completed {}'
+        '\t Metric {}'.format(
+            score,
+            tasks_finished,
+            metric
+        ), end=" ")
+    
+
+# Change the position of the interrupted agents
+env.reset()
+
+# NEW CONFIGURATION
+if training_flag == 'training0':
+    env.agents[1].initial_position = (6,8)
+
+env.reset()
+
+#################
+##### TEST 2 ####
+#################
+
+for step in range(max_steps):
+    # Broken agents
+    if training_flag == 'training0':
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+    if training_flag == 'training1':
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+        make_a_deterministic_interruption(env.agents[3], max_steps)
+    if training_flag == 'training1.1':
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+    for a in range(env.get_num_agents()):
+        update_values[a] = True
+        action = policy.act(agent_obs[a], eps=eps_start)
+
+        action_count[action] += 1
+        actions_taken.append(action)
+        action_dict.update({a: action})
+        
+        next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    policy.test()
+    
+    if done['__all__']:
+        break
+    #break if the first agent has done
+    if ((training_flag == 'training0') and (env.dones[0] == True)) or \
+        ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
+        ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        break
+    
+# metric most possible near to 0
+metric = calculate_metric(env, timetable)
+
+tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+
+print(  'Test 2 concluded:'
+        '\t 🏆 Score: {:.3f}'
+        '\t Agent completed {}'
+        '\t Metric {}'.format(
+            score,
+            tasks_finished,
+            metric
+        ), end=" ")
+    
