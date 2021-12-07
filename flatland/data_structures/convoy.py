@@ -25,10 +25,13 @@ class Convoy:
 
 		if train_type == Type_of_convoy.HIGH_VELOCITY:
 			self.maximum_velocity = 1
+			self.importance = 1
 		if train_type == Type_of_convoy.INTERCITY:
 			self.maximum_velocity = 1/2
+			self.importance = 0.75
 		if train_type == Type_of_convoy.REGIONAL:
 			self.maximum_velocity = 1/3
+			self.importance = 0.5
 
 	def add_train_run(self, train_run):
 		self.schedule.append(train_run)

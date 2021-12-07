@@ -7,11 +7,11 @@ import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pprint import pprint
+from random import *
 
 import psutil
 from torch.utils.tensorboard import SummaryWriter
 import torch
-
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
@@ -63,6 +63,27 @@ def calculate_metric(env, timetable):
     metric_normalized = metric_sum / (delta*dimension)
     return metric_normalized
 
+def choose_a_random_training_configuration(env, max_steps):
+    case = randint(0,4)
+    if case == 0:
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+        return    
+    elif case == 1:
+        env.agents[1].initial_position = (6,15)
+        env.agents[2].initial_position = (5,15)
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+        return
+    elif case == 2:
+        return
+    elif case == 3:
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+        return       
+    elif case == 4:
+        env.agents[2].initial_position = (5,15)
+        make_a_deterministic_interruption(env.agents[2], max_steps)
+        return
 
 def format_action_prob(action_probs):
     action_probs = np.round(action_probs, 3)
@@ -313,6 +334,8 @@ frame_step = 0
 os.makedirs("output/frames", exist_ok=True)
 
 for episode_idx in range(n_episodes + 1):
+    
+    deterministic_interruption_activation = False
 
     step_timer = Timer()
     reset_timer = Timer()
@@ -356,17 +379,17 @@ for episode_idx in range(n_episodes + 1):
 
         inference_timer.start() 
 
-        # Brolken agents
-        if training_flag == 'training0':
-            make_a_deterministic_interruption(env.agents[1], max_steps)
-            make_a_deterministic_interruption(env.agents[2], max_steps)
+    # Here define the actions to do
+        # Broken agents
+        if training_flag == 'training0' and not deterministic_interruption_activation:
+            if env.agents[1].state == TrainState.MOVING and env.agents[2].state == TrainState.MOVING:
+                choose_a_random_training_configuration(env, max_steps)
+                deterministic_interruption_activation = True
         if training_flag == 'training1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
             make_a_deterministic_interruption(env.agents[3], max_steps)
         if training_flag == 'training1.1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
-            
-    # Here define the actions to do
 
         # Chose an action for each agent in the environment
         # If not interruption, the actions to do are stored in a matrix
@@ -421,10 +444,7 @@ for episode_idx in range(n_episodes + 1):
         # Render an episode at some interval
         if render:
             env_renderer.render_env(
-                    show=True,
-                    frames=False,
-                    show_observations=False,
-                    show_predictions=False
+                    show=True, show_observations = False, frames = True, episode = True, step = True
                 )
         # Update replay buffer and train agent
         if multi_agent:

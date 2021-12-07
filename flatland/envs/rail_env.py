@@ -38,17 +38,17 @@ from configuration import example_training
 
 # Penalities 
 step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
-stop_penality = - 0.1                # penalty for stopping a moving agent
-reverse_penality = - 0.1             # penalty for reversing the march of an agent
+stop_penality = 0                # penalty for stopping a moving agent
+reverse_penality = 0             # penalty for reversing the march of an agent
 skip_penality = -5                   # penalty for skipping a station
-target_not_reached_penalty = -8      # penalty for not reaching the final target (depot)
+target_not_reached_penalty = -1.5     # penalty for not reaching the final target (depot)
+default_skip_penalty = 10000
 
-target_reward = 10         # reward for an agent reaching his final target
-station_passage_reward = 5 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
+target_reward = 3         # reward for an agent reaching his final target
+station_passage_reward = 2 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
 
 # Flag for the training
 training = example_training
-
 
 class RailEnv(Environment):
     """
@@ -212,6 +212,8 @@ class RailEnv(Environment):
         self.distance_map = DistanceMap(self.agents, self.height, self.width)
 
         self.action_space = [6]
+        
+        self.previous_station = [0] * number_of_agents
 
         self._seed()
         if random_seed:
@@ -368,6 +370,8 @@ class RailEnv(Environment):
 
         self.num_resets += 1
         self._elapsed_steps = 0
+        
+        self.previous_station = [0] * self.number_of_agents
 
         # Agent positions map
         self.agent_positions = np.zeros((self.height, self.width), dtype=int) - 1
@@ -447,10 +451,10 @@ class RailEnv(Environment):
             reward = 0
             return reward
 
-        reward = None
+        reward = 0
 
         # Reached intermediated stations?
-        reward = self.intermediate_station_reward(i_agent, timetable)
+        #reward = self.intermediate_station_reward(i_agent, timetable)
 
         # agent done? (arrival_time is not None)
         if agent.state == TrainState.DONE:
@@ -460,6 +464,9 @@ class RailEnv(Environment):
             i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
+            delay = min(agent.latest_arrival - agent.arrival_time, 0)
+            delay_penalty = delay * 0.7 * 0.7/3 # FORMULA DATA DAL PROF DA AGGIUSTARE
+            reward += delay_penalty
             #reward = min(agent.latest_arrival - agent.arrival_time, 0)
 
         # Agents not done (arrival_time is None)
@@ -526,15 +533,12 @@ class RailEnv(Environment):
         """
         Update the rewards dict for agent id i_agent for every timestep
         """
-        if training == 'training0' and i_agent != 0:
-            return
-        elif (training == 'training1' or training == 'training1.1') and i_agent > 1:
-            return
 
+        """
         action = self.agents[i_agent].action_saver.saved_action
         moving = self.agents[i_agent].moving
         state = self.agents[i_agent].state
-
+        """
         reward = None
 
         reward = step_penality
@@ -545,6 +549,128 @@ class RailEnv(Environment):
             reward += stop_penality
         """
         self.rewards_dict[i_agent] += reward
+        
+    def calculate_train_run(self, timetable, i_agent, specific_station_index):
+        """[Function to calculate a specific train run for a specific agent]
+
+        Args:
+            timetable ([list]): [Timetable]
+            i_agent ([int]): [i_agent]
+            specific_station_index ([int]): [Index of the station I want to calculate the train run in which is]
+        """
+        all_train_run = timetable[i_agent][0]
+        all_times = timetable[i_agent][1]
+
+        previous_station = all_train_run[specific_station_index]
+        
+        specific_train_run_stations = []
+        specific_train_run_times = []
+        specific_train_run = []
+        train_run_initial_index = 0
+        
+        # Starting finding the first station
+        if specific_station_index != 0:
+            for station_reversed in range(specific_station_index + 1):                    
+                if all_train_run[specific_station_index - station_reversed - 1] == previous_station:
+                    initial_train_run_station = previous_station
+                    if station_reversed == 0:
+                        train_run_initial_index = specific_station_index
+                        initial_time = all_times[train_run_initial_index]
+                    else:
+                        train_run_initial_index = specific_station_index - station_reversed
+                        initial_time = all_times[train_run_initial_index]
+                    break
+                elif station_reversed == specific_station_index:
+                    initial_train_run_station = previous_station
+                    train_run_initial_index = specific_station_index - station_reversed
+                    initial_time = all_times[train_run_initial_index]
+                    break
+                else:
+                    previous_station = all_train_run[specific_station_index - station_reversed - 1] 
+        # If I'm the first station...
+        else:
+            initial_train_run_station = previous_station
+            initial_time = all_times[0]
+        
+        previous_station = initial_train_run_station
+        previous_time = initial_time   
+        
+        for stations in range(1 , len(all_train_run)):
+            if previous_station == all_train_run[train_run_initial_index + stations]:
+                ending_train_run_station = previous_station
+                specific_train_run_stations.append(ending_train_run_station)
+                specific_train_run_times.append(all_times[train_run_initial_index + stations])
+                break
+            elif train_run_initial_index + stations == len(all_train_run):
+                ending_train_run_station = previous_station
+                specific_train_run_stations.append(ending_train_run_station)
+                specific_train_run_times.append(all_times[train_run_initial_index + stations])
+                break
+            else:
+                specific_train_run_stations.append(previous_station)
+                specific_train_run_times.append(previous_time)
+                previous_station = all_train_run[train_run_initial_index + stations]
+                previous_time = all_times[train_run_initial_index + stations]
+                if train_run_initial_index + stations == len(all_train_run) - 1:
+                    specific_train_run_stations.append(previous_station)
+                    specific_train_run_times.append(all_times[train_run_initial_index + stations])
+                    break
+        specific_train_run.append(specific_train_run_stations)
+        specific_train_run.append(specific_train_run_times)
+                
+        return specific_train_run
+    
+    def calculate_skip_penalty(self, timetable, index_of_station_skipped, station_skipped, time_scheduled,
+                               i_agent, station, train_type, specific_train_run):
+        
+        train_importance = train_type
+        station_importance = 0.7
+        #station_importance = station.importance   # TODO modificare !!!!
+        number_of_station_to_pass = len(specific_train_run)
+        
+        # array that have to contein all the possible passages from the skipped station for other agents (convoys)
+        possible_train_passage = []
+        
+        for i in range(len(timetable)):
+            if i != i_agent:
+                num_of_stations = len(timetable[i_agent][0])
+                for stations in range(num_of_stations):
+                    if timetable[i][0][stations] == station_skipped:        # same station
+                        if timetable[i][1][stations] > time_scheduled:      # greater time, so the successive agent
+                            if timetable[i][0][stations + 1] == timetable[i_agent][0][index_of_station_skipped + 1]:   # same direction
+                                possible_train_passage.append(timetable[i][1][stations] - time_scheduled)
+        
+        if possible_train_passage == []:
+            penalty = default_skip_penalty
+            
+        else:
+            for i in range(len(possible_train_passage)):
+                delay = min(possible_train_passage)
+                
+            
+        penalty = - (delay*train_importance*station_importance)/number_of_station_to_pass
+        
+        return
+    
+    def calculate_delay_penalty(self, delay, train_run, station, train_type):
+        """[Calculate the penalty of the agent based on the delay, and weighted on the type of train, on the importance of the station and 
+        on the number of stations reached by the train]
+
+        Args:
+            delay ([int]): [delay of the train in a specific station]
+            train_run ([list]): [specific train run i'm doing with my train]
+            station ([Station]): [station reached]
+            train_type ([convoy.type]): [type of the convoy (regional, intercity, high velocity)]
+        """
+        number_of_station_to_pass = len(train_run)      
+        
+        train_importance = train_type
+        #station_importance = station.importance
+        station_importance = 0.7  # TODO modificalo !!!!!
+        
+        penalty = - (delay*train_importance*station_importance)/number_of_station_to_pass
+        
+        return penalty
 
     def end_of_episode_update(self, have_all_agents_ended, timetable):
         """ 
@@ -575,31 +701,54 @@ class RailEnv(Environment):
             positions = self.cur_episode
             if positions == []:
                 return
-            penalty = 0
+            reward = 0
             step += - 2
             stations_to_pass = timetable[i_agent][0]
 
-            if positions[step][i_agent] in stations_to_pass:
+            if positions[step][i_agent] in stations_to_pass and positions[step][i_agent] != self.previous_station[i_agent]:
+                
+                self.previous_station[i_agent] = positions[step][i_agent]
+                
+                reward += station_passage_reward
 
                 station_in_which_i_am = positions[step][i_agent]
 
                 index = self.find_indices(timetable[i_agent][0], positions[step][i_agent])
                 difference = []
                 for num_station in range(len(index)):
-                    difference.append(abs(step - timetable[i_agent][1][index[num_station]]))
+                    difference.append(step - timetable[i_agent][1][index[num_station]])
 
                 index_of_min, value_of_min = min(enumerate(difference), key=itemgetter(1))
                 index_of_my_station = index[index_of_min]
+                
+                station = timetable[i_agent][0][index_of_my_station]
+                train_type = timetable[i_agent][2]
+                
+                specific_train_run = self.calculate_train_run(timetable, i_agent, index_of_my_station)
+                
+                index_of_my_station_for_my_train_run = specific_train_run[0].index(station)
+                
+                reward += self.calculate_delay_penalty(value_of_min, specific_train_run, station, train_type)
 
-                if index_of_my_station != 0:
+                if index_of_my_station > 1:
+                    previous_stations = specific_train_run[0][0:index_of_my_station_for_my_train_run]
+                    previous_times = specific_train_run[1][0:index_of_my_station_for_my_train_run]
+                    flag_station_passed = [False] * len(previous_stations)
                     for past_positions in range(len(positions)):
-                        if positions[past_positions][i_agent] == timetable[i_agent][0][index_of_my_station - 1]:
-                            self.rewards_dict[i_agent] += penalty
-                            return 
-                    penalty += skip_penality
-                    self.rewards_dict[i_agent] += penalty
+                        for i_previous_station in range(1, index_of_my_station):
+                            if positions[past_positions][i_agent] == timetable[i_agent][0][index_of_my_station - i_previous_station]:
+                                self.rewards_dict[i_agent] += 0 
+                                flag_station_passed[index_of_my_station - i_previous_station] = True
+                    
+                    for i_previous_station in range(len(flag_station_passed)):
+                        if not flag_station_passed[i_previous_station]: 
+                            station_skipped = previous_stations[0][i_previous_station]
+                            time_scheduled_for_station = previous_stations[1][i_previous_station] 
+                            reward += self.calculate_skip_penalty(timetable, index_of_my_station, station_skipped, 
+                                                             time_scheduled_for_station, i_agent, station, train_type, specific_train_run)
+                    self.rewards_dict[i_agent] += reward
                     return
-
+    """
     def intermediate_station_reward(self, convoy_i, timetable):
         reward = 0
         positions = self.cur_episode
@@ -619,7 +768,7 @@ class RailEnv(Environment):
                             time_difference = 1
                         reward += station_passage_reward/time_difference
                 i += 1
-        return reward       
+        return reward      """ 
 
     def step(self, action_dict_: Dict[int, RailEnvActions]):
         """
@@ -768,10 +917,13 @@ class RailEnv(Environment):
             else:
                 have_all_agents_ended &= (agent.state == TrainState.DONE)
 
-            ## Update rewards
-            self.update_step_rewards(i_agent)
+            ## Update rewards 
+            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:                           
+                self.update_step_rewards(i_agent)
 
-            self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
+            # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
+            if agent.state != TrainState.MALFUNCTION and agent.speed_counter.is_cell_entry and agent.state.is_on_map_state:
+                self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
 
             ## Update counters (malfunction and speed)
             agent.speed_counter.update_counter(agent.state, agent.old_position)

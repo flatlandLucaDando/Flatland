@@ -1,4 +1,4 @@
-
+from pyglet.gl import *
 import pyglet as pgl
 import time
 
