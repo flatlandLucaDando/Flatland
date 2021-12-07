@@ -25,6 +25,7 @@ from flatland.envs.agent import RandomAgent
 # Flag active in case of interruptions
 interruption = False
 
+max_steps = 250
 # The specs for the custom railway generation are taken from structures.py file
 specs = railway_example
 
@@ -78,7 +79,8 @@ env = RailEnv(  width= widht,
                 number_of_agents= num_of_agents,
                 obs_builder_object=TreeObservation,
                 remove_agents_at_target=True,
-                record_steps=True
+                record_steps=True,
+                max_episode_steps = max_steps - 1
                 )
 
 

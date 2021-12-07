@@ -1,4 +1,3 @@
-
 import time
 import numpy as np
 import os
@@ -41,6 +40,31 @@ from reinforcement_learning.dddqn_policy import DDDQNPolicy
 # Import training and observation parameters
 from parameters import training_params, obs_params
 
+# Check the maximum possible delay...180 not good for now
+def calculate_metric(env, timetable):
+    positions = env.cur_episode
+    prev_station = 0
+    metric_result = []
+    for i_agent in range(env.get_num_agents()):
+        station_vector = [0] * len(timetable[i_agent][0])
+        for i_station in range(len(timetable[i_agent][0])):
+            for step in range(len(positions)):
+                if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
+                    prev_station = positions[step][i_agent]
+                    difference = (step**2 - timetable[i_agent][1][i_station]**2)**2 + 0.001
+                    station_vector[i_station] = difference
+        for i in range(len(station_vector)):
+            if station_vector[i] == 0:
+                station_vector[i] = 360
+        metric_result.append(station_vector)
+    metric_sum = sum(sum(x) for x in metric_result)
+    dimension = 0
+    for i in range(len(metric_result)):
+        for j in range(len(metric_result[i])):
+            dimension += 1
+    metric_normalized = metric_sum / (360*dimension)
+    return metric_normalized
+
 
 def format_action_prob(action_probs):
     action_probs = np.round(action_probs, 3)
@@ -61,7 +85,7 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -349,6 +373,9 @@ for episode_idx in range(n_episodes + 1):
         if training_flag == 'training0':
             make_a_deterministic_interruption(env.agents[1], max_steps)
             make_a_deterministic_interruption(env.agents[2], max_steps)
+        if training_flag == 'training0.1':
+            make_a_deterministic_interruption(env.agents[1], max_steps)
+            make_a_deterministic_interruption(env.agents[2], max_steps)    
         if training_flag == 'training1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
             make_a_deterministic_interruption(env.agents[3], max_steps)
@@ -472,6 +499,9 @@ for episode_idx in range(n_episodes + 1):
             break
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
 
+    # metric most possible near to 0
+    metric = calculate_metric(env, timetable)
+    
     if multi_agent:
         # Epsilon decay
         eps_start = max(eps_end, eps_decay * eps_start)
@@ -506,14 +536,16 @@ for episode_idx in range(n_episodes + 1):
             '\t 💯 Done: {:.2f}%'
             ' Avg: {:.2f}%'
             '\t 🎲 Epsilon: {:.3f} '
-            '\t 🔀 Action Probs: {}'.format(
+            '\t 🔀 Action Probs: {}'
+            '\t Metric {}'.format(
                 episode_idx,
                 normalized_score,
                 smoothed_normalized_score,
                 100 * completion,
                 100 * smoothed_completion,
                 eps_start,
-                format_action_prob(action_probs)
+                format_action_prob(action_probs),
+                metric
             ), end=" ")
 
-    # interruption = False
+    interruption = False

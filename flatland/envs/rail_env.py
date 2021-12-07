@@ -38,13 +38,16 @@ from configuration import example_training
 
 # Penalities 
 step_penality = - 0.1      # a step is time passing, so a penality for each step is needed
-stop_penality = - 0.5      # penality for stopping a moving agent
-reverse_penality = - 0.5   # penality for reversing the march of an agent
+stop_penality = - 0.1      # penalty for stopping a moving agent
+reverse_penality = - 0.1   # penalty for reversing the march of an agent
+skip_penality = -5         # penalty for skipping a station
 
-target_reward = 50         # reward for an agent reaching his final target
+target_reward = 10         # reward for an agent reaching his final target
+station_passage_reward = 5 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
 
 # Flag for the training
 training = example_training
+
 
 class RailEnv(Environment):
     """
@@ -238,6 +241,13 @@ class RailEnv(Environment):
 
         return [seed]
 
+    def find_indices(self, array, index_to_find):
+        indeces = []
+        for i in range(len(array)):
+            if array[i] == index_to_find:
+                indeces.append(i)
+        return (indeces)
+
     # no more agent_handles
     def get_agent_handles(self):
         return range(self.get_num_agents())
@@ -419,7 +429,7 @@ class RailEnv(Environment):
 
         return st_signals
 
-    def _handle_end_reward(self, agent: EnvAgent) -> int:
+    def _handle_end_reward(self, agent: EnvAgent, timetable) -> int:
         '''
         Handles end-of-episode reward for a particular agent.
 
@@ -429,21 +439,23 @@ class RailEnv(Environment):
         '''
         i_agent = agent.handle
 
-        if training == 'training0':
-            if i_agent != 0:
-                reward = 0
-                return reward
-        if training == 'training1' or training == 'training1.1':
-            if i_agent > 1:
-                reward = 0
-                return reward
+        if training == 'training0' and i_agent != 0:
+            reward = 0
+            return reward
+        if (training == 'training1' or training == 'training1.1') and i_agent > 1:
+            reward = 0
+            return reward
 
         reward = None
+
+        # Reached intermediated stations?
+        reward = self.intermediate_station_reward(i_agent, timetable)
+
         # agent done? (arrival_time is not None)
         if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
-            reward = target_reward
+            reward += target_reward
             i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
@@ -453,12 +465,12 @@ class RailEnv(Environment):
         else:
             # CANCELLED check (never departed)
             if (agent.state.is_off_map_state()):
-                reward = -1 * self.cancellation_factor * \
+                reward += -1 * self.cancellation_factor * \
                     (agent.get_travel_time_on_shortest_path(self.distance_map) + self.cancellation_time_buffer)
 
             # Departed but never reached
             if (agent.state.is_on_map_state()):
-                reward = -0.5
+                reward += -0.5
                 # DELAY
                 #reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
         
@@ -533,7 +545,7 @@ class RailEnv(Environment):
         
         self.rewards_dict[i_agent] += reward
 
-    def end_of_episode_update(self, have_all_agents_ended):
+    def end_of_episode_update(self, have_all_agents_ended, timetable):
         """ 
         Updates made when episode ends
         Parameters: have_all_agents_ended - Indicates if all agents have reached done state
@@ -543,7 +555,7 @@ class RailEnv(Environment):
 
             for i_agent, agent in enumerate(self.agents):
                 
-                reward = self._handle_end_reward(agent)
+                reward = self._handle_end_reward(agent, timetable)
                 self.rewards_dict[i_agent] += reward
                 
                 #self.dones[i_agent] = True
@@ -556,6 +568,57 @@ class RailEnv(Environment):
             agent.arrival_time = self._elapsed_steps
             if self.remove_agents_at_target:
                 agent.position = None
+
+    def check_intermediate_station_passage(self, step, i_agent, timetable):
+            from operator import itemgetter
+            positions = self.cur_episode
+            if positions == []:
+                return
+            penalty = 0
+            step += - 2
+            stations_to_pass = timetable[i_agent][0]
+
+            if positions[step][i_agent] in stations_to_pass:
+
+                station_in_which_i_am = positions[step][i_agent]
+
+                index = self.find_indices(timetable[i_agent][0], positions[step][i_agent])
+                difference = []
+                for num_station in range(len(index)):
+                    difference.append(abs(step - timetable[i_agent][1][index[num_station]]))
+
+                index_of_min, value_of_min = min(enumerate(difference), key=itemgetter(1))
+                index_of_my_station = index[index_of_min]
+
+                if index_of_my_station != 0:
+                    for past_positions in range(len(positions)):
+                        if positions[past_positions][i_agent] == timetable[i_agent][0][index_of_my_station - 1]:
+                            self.rewards_dict[i_agent] += penalty
+                            return 
+                    penalty += skip_penality
+                    self.rewards_dict[i_agent] += penalty
+                    return
+
+    def intermediate_station_reward(self, convoy_i, timetable):
+        reward = 0
+        positions = self.cur_episode
+        passed_positions_convoy_i = [row[convoy_i] for row in positions]
+        i = 0
+        initial_station = timetable[convoy_i][0][0]
+        for station_i in timetable[convoy_i][0]:
+            if station_i == initial_station:
+                continue
+            for positions in passed_positions_convoy_i:
+                if station_i == positions:
+                    index = self.find_indices(timetable[convoy_i][0], station_i)
+                    for time_index in index: 
+                        time_scheduled = timetable[convoy_i][1][time_index]
+                        time_difference = (time_scheduled - i)**2
+                        if time_difference == 0:
+                            time_difference = 1
+                        reward += station_passage_reward/time_difference
+                i += 1
+        return reward       
 
     def step(self, action_dict_: Dict[int, RailEnvActions]):
         """
@@ -707,6 +770,8 @@ class RailEnv(Environment):
             ## Update rewards
             self.update_step_rewards(i_agent)
 
+            self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
+
             ## Update counters (malfunction and speed)
             agent.speed_counter.update_counter(agent.state, agent.old_position)
                                             #    agent.state_machine.previous_state)
@@ -717,11 +782,38 @@ class RailEnv(Environment):
                 agent.action_saver.clear_saved_action()
         
         # Check if episode has ended and update rewards and dones
-        self.end_of_episode_update(have_all_agents_ended)
+        self.end_of_episode_update(have_all_agents_ended, optionals['agents_hints']['timetable'])
 
         self._update_agent_positions_map()
+        if self.record_steps:
+            self.record_timestep(action_dict_)
+
 
         return self._get_observations(), self.rewards_dict, self.dones, self.get_info_dict() 
+
+    '''def record_timestep(self, dActions):
+                    """ 
+                    Record the positions and orientations of all agents in memory, in the cur_episode
+                    """
+                    list_agents_state = []
+                    for i_agent in range(self.get_num_agents()):
+                        agent = self.agents[i_agent]
+                        # the int cast is to avoid numpy types which may cause problems with msgpack
+                        # in env v2, agents may have position None, before starting
+                        if agent.position is None:
+                            pos = (0, 0)
+                        else:
+                            pos = (int(agent.position[0]), int(agent.position[1]))
+                        # print("pos:", pos, type(pos[0]))
+                        list_agents_state.append([
+                                *pos, int(agent.direction), 
+                                agent.malfunction_handler.malfunction_down_counter,  
+                                int(agent.state),
+                                int(agent.position in self.motionCheck.svDeadlocked)
+                                ])
+            
+                    self.cur_episode.append(list_agents_state)
+                    self.list_actions.append(dActions)'''
 
     def record_timestep(self, dActions):
         """ 
@@ -737,12 +829,7 @@ class RailEnv(Environment):
             else:
                 pos = (int(agent.position[0]), int(agent.position[1]))
             # print("pos:", pos, type(pos[0]))
-            list_agents_state.append([
-                    *pos, int(agent.direction), 
-                    agent.malfunction_handler.malfunction_down_counter,  
-                    int(agent.status),
-                    int(agent.position in self.motionCheck.svDeadlocked)
-                    ])
+            list_agents_state.append(pos)
 
         self.cur_episode.append(list_agents_state)
         self.list_actions.append(dActions)
