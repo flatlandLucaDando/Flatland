@@ -934,12 +934,12 @@ class RailEnv(Environment):
             if agent.speed_counter.is_cell_entry and agent.position is not None:
                 agent.action_saver.clear_saved_action()
         
-        # Check if episode has ended and update rewards and dones
-        self.end_of_episode_update(have_all_agents_ended, optionals['agents_hints']['timetable'])
-
         self._update_agent_positions_map()
         if self.record_steps:
             self.record_timestep(action_dict_)
+        
+        # Check if episode has ended and update rewards and dones
+        self.end_of_episode_update(have_all_agents_ended, optionals['agents_hints']['timetable'])
 
 
         return self._get_observations(), self.rewards_dict, self.dones, self.get_info_dict() 

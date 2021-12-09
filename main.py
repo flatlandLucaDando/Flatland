@@ -52,7 +52,7 @@ def calculate_metric(env, timetable):
             for step in range(len(positions)):
                 if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
                     prev_station = positions[step][i_agent]
-                    distance_delay = (step**2 - timetable[i_agent][1][i_station]**2)**(1/2)
+                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
                     station_vector[i_station] = distance_delay
         metric_result.append(station_vector)
     metric_sum = sum(sum(x) for x in metric_result)
@@ -334,6 +334,8 @@ frame_step = 0
 os.makedirs("output/frames", exist_ok=True)
 
 for episode_idx in range(n_episodes + 1):
+    
+    deterministic_interruption_activation = False
 
     step_timer = Timer()
     reset_timer = Timer()
@@ -370,14 +372,6 @@ for episode_idx in range(n_episodes + 1):
             agent_obs[agent] = obs[agent]
             agent_prev_obs[agent] = agent_obs[agent].copy()
             
-        # Broken agents
-    if training_flag == 'training0':
-        choose_a_random_training_configuration(env, max_steps)
-    if training_flag == 'training1':
-        make_a_deterministic_interruption(env.agents[2], max_steps)
-        make_a_deterministic_interruption(env.agents[3], max_steps)
-    if training_flag == 'training1.1':
-        make_a_deterministic_interruption(env.agents[2], max_steps)
 
     # Run episode (one day long, 1 step is 1 minute) 1440
     for step in range(max_steps):
@@ -387,6 +381,17 @@ for episode_idx in range(n_episodes + 1):
         inference_timer.start() 
             
     # Here define the actions to do
+    
+        # Broken agents
+        if training_flag == 'training0' and not deterministic_interruption_activation:
+            if env.agents[1].state == TrainState.MOVING and env.agents[2].state == TrainState.MOVING:
+                choose_a_random_training_configuration(env, max_steps)
+                deterministic_interruption_activation = True
+        if training_flag == 'training1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
+            make_a_deterministic_interruption(env.agents[3], max_steps)
+        if training_flag == 'training1.1':
+            make_a_deterministic_interruption(env.agents[2], max_steps)
 
         # Chose an action for each agent in the environment
         # If not interruption, the actions to do are stored in a matrix
