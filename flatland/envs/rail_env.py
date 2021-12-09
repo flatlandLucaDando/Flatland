@@ -40,12 +40,12 @@ from configuration import example_training
 step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
 stop_penality = 0                # penalty for stopping a moving agent
 reverse_penality = 0             # penalty for reversing the march of an agent
-skip_penality = -5                   # penalty for skipping a station
+skip_penality = 0                   # penalty for skipping a station
 target_not_reached_penalty = -1.5     # penalty for not reaching the final target (depot)
 default_skip_penalty = 10000
 
-target_reward = 3         # reward for an agent reaching his final target
-station_passage_reward = 2 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
+target_reward = 5         # reward for an agent reaching his final target
+station_passage_reward = 3 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
 
 # Flag for the training
 training = example_training
@@ -214,6 +214,9 @@ class RailEnv(Environment):
         self.action_space = [6]
         
         self.previous_station = [0] * number_of_agents
+        
+        self.dones_for_position = [False] * number_of_agents
+        
 
         self._seed()
         if random_seed:
@@ -372,6 +375,9 @@ class RailEnv(Environment):
         self._elapsed_steps = 0
         
         self.previous_station = [0] * self.number_of_agents
+        
+        self.dones_for_position = [False] * self.number_of_agents
+        
 
         # Agent positions map
         self.agent_positions = np.zeros((self.height, self.width), dtype=int) - 1
@@ -934,13 +940,12 @@ class RailEnv(Environment):
             if agent.speed_counter.is_cell_entry and agent.position is not None:
                 agent.action_saver.clear_saved_action()
         
-        self._update_agent_positions_map()
-        if self.record_steps:
-            self.record_timestep(action_dict_)
-        
         # Check if episode has ended and update rewards and dones
         self.end_of_episode_update(have_all_agents_ended, optionals['agents_hints']['timetable'])
 
+        self._update_agent_positions_map()
+        if self.record_steps:
+            self.record_timestep(action_dict_)
 
         return self._get_observations(), self.rewards_dict, self.dones, self.get_info_dict() 
 
@@ -977,10 +982,18 @@ class RailEnv(Environment):
             agent = self.agents[i_agent]
             # the int cast is to avoid numpy types which may cause problems with msgpack
             # in env v2, agents may have position None, before starting
-            if agent.position is None:
-                pos = (0, 0)
+            if agent.state == TrainState.DONE and not self.dones_for_position[i_agent]:
+                pos = agent.target
+                self.dones_for_position[i_agent] = True
+                
+            elif agent.state.is_off_map_state():
+                pos = (-1, 0) 
+                
+            elif agent.position == None: 
+                pos = (-1, 0)
             else:
                 pos = (int(agent.position[0]), int(agent.position[1]))
+                
             # print("pos:", pos, type(pos[0]))
             list_agents_state.append(pos)
 

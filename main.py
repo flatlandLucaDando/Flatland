@@ -47,20 +47,21 @@ def calculate_metric(env, timetable):
     delta = 250
     metric_result = []
     for i_agent in range(env.get_num_agents()):
-        station_vector = [delta] * len(timetable[i_agent][0])
-        for i_station in range(len(timetable[i_agent][0])):
-            for step in range(len(positions)):
-                if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
-                    prev_station = positions[step][i_agent]
-                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
-                    station_vector[i_station] = distance_delay
-        metric_result.append(station_vector)
+        if not env.agents[i_agent].state == TrainState.MALFUNCTION:
+            station_vector = [delta] * len(timetable[i_agent][0])
+            for i_station in range(len(timetable[i_agent][0])):
+                for step in range(len(positions)):
+                    if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
+                        prev_station = positions[step][i_agent]
+                        distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
+                        station_vector[i_station] = distance_delay
+            metric_result.append(station_vector)
     metric_sum = sum(sum(x) for x in metric_result)
     dimension = 0
     for i in range(len(metric_result)):
         for j in range(len(metric_result[i])):
             dimension += 1
-    metric_normalized = metric_sum / (delta*dimension)
+    metric_normalized = 1 - (metric_sum / (delta*dimension))
     return metric_normalized
 
 def choose_a_random_training_configuration(env, max_steps):
@@ -104,7 +105,7 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = True
+render = False
 
 ######### FLAGS ##########
 # Flag for the first training

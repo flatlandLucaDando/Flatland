@@ -351,8 +351,8 @@ if example_training == 'training0':
 	timetable_example = calculate_timetable(convoys, rail)
 
 	# Interruption
-	timetable_example.append([[(6,8), (6,13)],[1, 225], 0.5])
-	timetable_example.append([[(5,8), (5,13)],[1, 225], 0.5])
+	timetable_example.append([[(6,8), (6,13)],[1, 13], 0.5])
+	timetable_example.append([[(5,8), (5,13)],[1, 13], 0.5])
 
 
 
