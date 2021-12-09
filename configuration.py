@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_training = 'training0.1'
+example_training = 'training0'
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -62,8 +62,7 @@ if example_training == 1:
 	# Generating the timetable
 	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
 	timetable_example = calculate_timetable(convoys, rail)
-
-
+ 
 	# TODO crea una funzione (per ora non è una funzione, serve quella) per esportare le timetable come excel
 	from pandas import DataFrame
 	import pandas as pd

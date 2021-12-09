@@ -29,3 +29,4 @@ class DuelingQNetwork(nn.Module):
         adv = self.fc4_adv(adv)
 
         return val + adv - adv.mean()
+    
