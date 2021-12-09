@@ -104,7 +104,7 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -371,7 +371,6 @@ for episode_idx in range(n_episodes + 1):
         for agent in env.get_agent_handles():
             agent_obs[agent] = obs[agent]
             agent_prev_obs[agent] = agent_obs[agent].copy()
-            
 
     # Run episode (one day long, 1 step is 1 minute) 1440
     for step in range(max_steps):
@@ -379,9 +378,8 @@ for episode_idx in range(n_episodes + 1):
             env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
 
         inference_timer.start() 
-            
+
     # Here define the actions to do
-    
         # Broken agents
         if training_flag == 'training0' and not deterministic_interruption_activation:
             if env.agents[1].state == TrainState.MOVING and env.agents[2].state == TrainState.MOVING:
@@ -446,7 +444,7 @@ for episode_idx in range(n_episodes + 1):
         # Render an episode at some interval
         if render:
             env_renderer.render_env(
-                    show=True
+                    show=True, show_observations = False, frames = True, episode = True, step = True
                 )
         # Update replay buffer and train agent
         if multi_agent:
