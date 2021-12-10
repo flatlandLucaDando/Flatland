@@ -77,11 +77,15 @@ def choose_a_random_training_configuration(env, max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return
     elif case == 2:
+        env.agents[1].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
+        env.agents[2].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
         return
     elif case == 3:
         make_a_deterministic_interruption(env.agents[1], max_steps)
+        env.agents[2].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
         return       
     elif case == 4:
+        env.agents[1].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
         env.agents[2].initial_position = (5,15)
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return
@@ -482,8 +486,9 @@ for episode_idx in range(n_episodes + 1):
             ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
             break
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
-
-    # metric most possible near to 0
+    print()
+    
+    # metric near to 1 is great result
     metric = calculate_metric(env, timetable)
     
     if multi_agent:

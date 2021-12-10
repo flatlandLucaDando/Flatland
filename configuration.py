@@ -62,7 +62,7 @@ if example_training == 1:
 	# Generating the timetable
 	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
 	timetable_example = calculate_timetable(convoys, rail)
- 
+""" 
 	# TODO crea una funzione (per ora non è una funzione, serve quella) per esportare le timetable come excel
 	from pandas import DataFrame
 	import pandas as pd
@@ -99,7 +99,7 @@ if example_training == 1:
 
 	# run function
 	os.makedirs("output/timetables", exist_ok=True)
-	multiple_dfs(df, 'Validation', 'output/timetables/timetable_test_1.xlsx', 1)
+	multiple_dfs(df, 'Validation', 'output/timetables/timetable_test_1.xlsx', 1)"""
 
 if example_training == 2:
 	# Import the examples
