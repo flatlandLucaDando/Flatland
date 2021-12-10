@@ -43,6 +43,8 @@ reverse_penality = 0             # penalty for reversing the march of an agent
 skip_penality = 0                   # penalty for skipping a station
 target_not_reached_penalty = -1.5     # penalty for not reaching the final target (depot)
 default_skip_penalty = 10000
+cancellation_factor = 1
+cancellation_time_buffer = 0
 
 target_reward = 5         # reward for an agent reaching his final target
 station_passage_reward = 3 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
@@ -102,19 +104,6 @@ class RailEnv(Environment):
     For Round 2, they will be passed to the constructor as arguments, to allow for more flexibility.
 
     """
-    # Epsilon to avoid rounding errors
-    epsilon = 0.01
-    # NEW : REW: Sparse Reward
-    alpha = 0.05
-    beta = 1
-    step_penalty = -1 * alpha
-    global_reward = 1 * beta
-    invalid_action_penalty = 0  # previously -2; GIACOMO: we decided that invalid actions will carry no penalty
-    stop_penalty = -0.5  # penalty for stopping a moving agent
-    reverse_penality = -0.5
-    start_penalty = 0  # penalty for starting a stopped agent
-    cancellation_factor = 1
-    cancellation_time_buffer = 0
 
     def __init__(self,
                  width,
@@ -656,7 +645,7 @@ class RailEnv(Environment):
             
         penalty = - (delay*train_importance*station_importance)/number_of_station_to_pass
         
-        return
+        return penalty
     
     def calculate_delay_penalty(self, delay, train_run, station, train_type):
         """[Calculate the penalty of the agent based on the delay, and weighted on the type of train, on the importance of the station and 
