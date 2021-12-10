@@ -77,15 +77,15 @@ def choose_a_random_training_configuration(env, max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return
     elif case == 2:
-        env.agents[1].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
-        env.agents[2].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
+        env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
+        env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
         return
     elif case == 3:
         make_a_deterministic_interruption(env.agents[1], max_steps)
-        env.agents[2].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
+        env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
         return       
     elif case == 4:
-        env.agents[1].agent_to_interrupt.malfunction_handler.malfunction_down_counter = max_steps
+        env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
         env.agents[2].initial_position = (5,15)
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return
@@ -109,7 +109,7 @@ eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = '0' 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -388,9 +388,9 @@ for episode_idx in range(n_episodes + 1):
     # Here define the actions to do
         # Broken agents
         if training_flag == 'training0' and not deterministic_interruption_activation:
-            if env.agents[1].state == TrainState.MOVING and env.agents[2].state == TrainState.MOVING:
-                choose_a_random_training_configuration(env, max_steps)
-                deterministic_interruption_activation = True
+            #if env.agents[1].state == TrainState.MOVING and env.agents[2].state == TrainState.MOVING:
+            choose_a_random_training_configuration(env, max_steps)
+            #deterministic_interruption_activation = True
         if training_flag == 'training1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
             make_a_deterministic_interruption(env.agents[3], max_steps)
