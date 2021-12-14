@@ -96,7 +96,7 @@ def format_action_prob(action_probs):
 n_episodes = 2000
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.99
+eps_decay = 0.995
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = 0 
@@ -549,8 +549,6 @@ def display_episode(frames):
     animation = matplotlib.animation.FuncAnimation(fig, animate, frames=len(frames))
     return animation
 
-
-training_flag = example_training
 
 #################
 ##### TEST 1 ####

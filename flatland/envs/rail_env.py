@@ -483,12 +483,12 @@ class RailEnv(Environment):
                 
                 for positions in range (len(pasted_agent_positions)):
                     # If the agent is passed in at least one station (different from the starting one) no problems
-                    if pasted_agent_positions[positions][i_agent] in stations_to_pass:
+                    if pasted_agent_positions[positions][i_agent] in stations_to_pass[1:]:
                         return reward
                     
                 # else, I have to give a skip penalty for all the skipped stations, for now simplified
                 # I give an high penalty
-                reward += default_skip_penalty
+                reward += - default_skip_penalty
                 return reward
                             
                               
