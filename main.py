@@ -379,10 +379,6 @@ for episode_idx in range(n_episodes + 1):
         # Broken agents
         if training_flag == 'training0' and not deterministic_interruption_activation:
             choose_a_random_training_configuration(env, max_steps)
-<<<<<<< Updated upstream
-=======
-            deterministic_interruption_activation = True
->>>>>>> Stashed changes
         if training_flag == 'training1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
             make_a_deterministic_interruption(env.agents[3], max_steps)
