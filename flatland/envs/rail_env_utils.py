@@ -84,7 +84,6 @@ def actions_decimal_to_base(base, number_to_convert, num_agents):
 
 
 def make_a_deterministic_interruption(agent_to_interrupt, interruption_time):
-    state = agent_to_interrupt.state
-    if state == TrainState.MOVING:
+    if agent_to_interrupt.state.is_on_map_state():
         agent_to_interrupt.malfunction_handler.malfunction_down_counter = interruption_time
 

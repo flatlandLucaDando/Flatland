@@ -41,13 +41,13 @@ step_penality = - 0.01               # a step is time passing, so a penality for
 stop_penality = 0                # penalty for stopping a moving agent
 reverse_penality = 0             # penalty for reversing the march of an agent
 skip_penality = 0                   # penalty for skipping a station
-target_not_reached_penalty = -1.5     # penalty for not reaching the final target (depot)
+target_not_reached_penalty = -7     # penalty for not reaching the final target (depot)
 default_skip_penalty = 10000
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
-target_reward = 5         # reward for an agent reaching his final target
-station_passage_reward = 3 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
+target_reward = 10        # reward for an agent reaching his final target
+station_passage_reward = 7 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
 
 # Flag for the training
 training = example_training
@@ -202,7 +202,7 @@ class RailEnv(Environment):
 
         self.action_space = [6]
         
-        self.previous_station = [0] * number_of_agents
+        self.previous_station = [[(-1,0)]] * number_of_agents
         
         self.dones_for_position = [False] * number_of_agents
         
@@ -363,7 +363,7 @@ class RailEnv(Environment):
         self.num_resets += 1
         self._elapsed_steps = 0
         
-        self.previous_station = [0] * self.number_of_agents
+        self.previous_station = [[(-1,0)]] * self.number_of_agents
         
         self.dones_for_position = [False] * self.number_of_agents
         
@@ -456,7 +456,6 @@ class RailEnv(Environment):
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
             reward += target_reward
-            i_agent = agent.handle
             self.dones[i_agent] = True
             # DELAY
             delay = min(agent.latest_arrival - agent.arrival_time, 0)
@@ -474,6 +473,26 @@ class RailEnv(Environment):
             # Departed but never reached
             if (agent.state.is_on_map_state()):
                 reward += target_not_reached_penalty
+                
+                pasted_agent_positions = self.cur_episode
+                if pasted_agent_positions == []:
+                    reward += default_skip_penalty
+                    return reward
+                
+                # Attention!!! Check if different train runs are done for an agent...problems in that case
+                stations_to_pass = timetable[i_agent][0]
+                
+                for positions in range (len(pasted_agent_positions)):
+                    # If the agent is passed in at least one station (different from the starting one) no problems
+                    if pasted_agent_positions[i_agent][positions] in stations_to_pass:
+                        return reward
+                    
+                # else, I have to give a skip penalty for all the skipped stations, for now simplified
+                # I give an high penalty
+                reward += default_skip_penalty
+                return reward
+                            
+                              
                 # DELAY
                 #reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
         
@@ -629,14 +648,15 @@ class RailEnv(Environment):
         for i in range(len(timetable)):
             if i != i_agent:
                 num_of_stations = len(timetable[i_agent][0])
-                for stations in range(num_of_stations):
+                for stations in range(num_of_stations - 1):
                     if timetable[i][0][stations] == station_skipped:        # same station
                         if timetable[i][1][stations] > time_scheduled:      # greater time, so the successive agent
                             if timetable[i][0][stations + 1] == timetable[i_agent][0][index_of_station_skipped + 1]:   # same direction
                                 possible_train_passage.append(timetable[i][1][stations] - time_scheduled)
         
         if possible_train_passage == []:
-            penalty = default_skip_penalty
+            penalty = - default_skip_penalty
+            return penalty
             
         else:
             for i in range(len(possible_train_passage)):
@@ -657,7 +677,7 @@ class RailEnv(Environment):
             station ([Station]): [station reached]
             train_type ([convoy.type]): [type of the convoy (regional, intercity, high velocity)]
         """
-        number_of_station_to_pass = len(train_run)      
+        number_of_station_to_pass = len(train_run) + 1     
         
         train_importance = train_type
         #station_importance = station.importance
@@ -697,18 +717,17 @@ class RailEnv(Environment):
             if positions == []:
                 return
             reward = 0
-            step += - 2
             stations_to_pass = timetable[i_agent][0]
 
-            if positions[step][i_agent] in stations_to_pass and positions[step][i_agent] != self.previous_station[i_agent]:
-                
-                self.previous_station[i_agent] = positions[step][i_agent]
+            if positions[step - 1][i_agent] in stations_to_pass and positions[step - 1][i_agent] not in self.previous_station[i_agent]:
+
+                self.previous_station[i_agent].append(positions[step - 1][i_agent])
                 
                 reward += station_passage_reward
 
-                station_in_which_i_am = positions[step][i_agent]
+                station_in_which_i_am = positions[step - 1][i_agent]
 
-                index = self.find_indices(timetable[i_agent][0], positions[step][i_agent])
+                index = self.find_indices(timetable[i_agent][0], positions[step - 1][i_agent])
                 difference = []
                 for num_station in range(len(index)):
                     difference.append(step - timetable[i_agent][1][index[num_station]])
@@ -897,7 +916,23 @@ class RailEnv(Environment):
 
             # Off map or on map state and position should match
             env_utils.state_position_sync_check(agent.state, agent.position, agent.handle)
+                
+        self._update_agent_positions_map()
+        if self.record_steps:
+            self.record_timestep(action_dict_)
+            
+        for agent in self.agents:
+            
+            i_agent = agent.handle
 
+            ## Update rewards 
+            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:                           
+                self.update_step_rewards(i_agent)
+
+            # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
+            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:
+                self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
+                
             # Handle done state actions, optionally remove agents
             self.handle_done_state(agent)
             
@@ -912,14 +947,6 @@ class RailEnv(Environment):
             else:
                 have_all_agents_ended &= (agent.state == TrainState.DONE)
 
-            ## Update rewards 
-            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:                           
-                self.update_step_rewards(i_agent)
-
-            # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
-            if agent.state != TrainState.MALFUNCTION and agent.speed_counter.is_cell_entry and agent.state.is_on_map_state:
-                self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
-
             ## Update counters (malfunction and speed)
             agent.speed_counter.update_counter(agent.state, agent.old_position)
                                             #    agent.state_machine.previous_state)
@@ -932,11 +959,9 @@ class RailEnv(Environment):
         # Check if episode has ended and update rewards and dones
         self.end_of_episode_update(have_all_agents_ended, optionals['agents_hints']['timetable'])
 
-        self._update_agent_positions_map()
-        if self.record_steps:
-            self.record_timestep(action_dict_)
-
         return self._get_observations(), self.rewards_dict, self.dones, self.get_info_dict() 
+    
+
 
     '''def record_timestep(self, dActions):
                     """ 
