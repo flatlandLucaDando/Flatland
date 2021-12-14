@@ -479,7 +479,6 @@ class RailEnv(Environment):
                     reward += default_skip_penalty
                     return reward
                 
-                # Attention!!! Check if different train runs are done for an agent...problems in that case
                 stations_to_pass = timetable[i_agent][0]
                 
                 for positions in range (len(pasted_agent_positions)):
