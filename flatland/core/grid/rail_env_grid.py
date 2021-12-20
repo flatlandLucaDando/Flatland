@@ -36,7 +36,8 @@ class RailEnvTransitions(Grid4Transitions):
                        int('0100000000000010', 2),  # Case 1b (8)  - simple turn right
                        int('0001001000000000', 2),  # Case 1c (9)  - simple turn left
                        int('1100000000100010', 2),  # Case 2b (10) - simple switch mirrored
-                       int('1101001000100010', 2)]  # Case 11 - symmetrical and straight  
+                       int('1101001000100010', 2),  # Case 11 - symmetrical and straight  
+                       int('0101011000000011', 2)]  # Case 12 - symmetrical and straight  
 
     def __init__(self):
         super(RailEnvTransitions, self).__init__(
