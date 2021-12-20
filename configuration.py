@@ -334,15 +334,13 @@ if example_training == 'training0':
 	linea_genova_levante = Line(type_line = Connection_type.NORMAL_RAIL, 
 		stations = (genova_station, recco_station, chiavari_station), stops = (1, 1, 1))
 
-	stations = []
-
-	stations.append([genova_station.position, 0.5])
-	stations.append([recco_station.position, 0.5])
-	stations.append([chiavari_station, 0.5])
+	stations = [genova_station, recco_station, chiavari_station]
 
 	train_run_0 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True)
 
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
+	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
+	R104_convoy = Convoy(Type_of_convoy.INTERCITY)
 
 	convoys = [R102_convoy]
 
@@ -351,8 +349,8 @@ if example_training == 'training0':
 	timetable_example = calculate_timetable(convoys, rail)
 
 	# Interruption
-	timetable_example.append([[(6,8), (6,12)],[1, 13], 0.5])
-	timetable_example.append([[(5,8), (5,12)],[1, 13], 0.5])
+	timetable_example.append([[genova_station, recco_station],[1, 30], R103_convoy, [0, 0]])
+	timetable_example.append([[genova_station, recco_station],[1, 30], R104_convoy, [0, 0]])
 
 
 

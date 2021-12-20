@@ -19,7 +19,7 @@ class Station:
 		# Stations have different importance depending on how much they are big and how much people they transport depending on the time
 		self.importance = importance
 		# Rails of the station
-		self.rails = self.calculate_rails(railway_topology)
+		self.calculate_rails(railway_topology)
 		return
 
 
@@ -56,7 +56,7 @@ class Station:
 		current_position = (self.position[0], self.position[1])
   
 		# The first rail coincide with the position of the station
-		self.rails.append(current_position)
+		self.rails.append(tuple(current_position))
 
 		while counter_of_rails < num_of_rails:
 
@@ -78,7 +78,7 @@ class Station:
 				current_position = Vec2d.add(current_position, new_pos)
 				# If not 0 the rail is in the station
 				if railway_topology.grid[current_position] != 0:
-					self.rails.append(current_position)
+					self.rails.append(tuple(current_position))
 					counter_of_rails += 1
 					continue
 				else:
@@ -93,7 +93,7 @@ class Station:
 				current_position = Vec2d.add(current_position, new_pos)
 				# If not 0 the rail is in the station
 				if railway_topology.grid[current_position] != 0:
-					self.rails.append(current_position)
+					self.rails.append(tuple(current_position))
 					counter_of_rails += 1
 					continue
 				else:
@@ -107,7 +107,7 @@ class Station:
 				current_position = Vec2d.add(current_position, new_pos)
 				# If not 0 the rail is in the station
 				if railway_topology.grid[current_position] != 0:
-					self.rails.append(current_position)
+					self.rails.append(tuple(current_position))
 					counter_of_rails += 1
 					continue
 				else:
@@ -122,7 +122,7 @@ class Station:
 				current_position = Vec2d.add(current_position, new_pos)
 				# If not 0 the rail is in the station
 				if railway_topology.grid[current_position] != 0:
-					self.rails.append(current_position)
+					self.rails.append(tuple(current_position))
 					counter_of_rails += 1
 					continue
 				else:

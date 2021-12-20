@@ -35,11 +35,23 @@ from reinforcement_learning.dddqn_policy import DDDQNPolicy
 from parameters import training_params, obs_params
 
 
+import matplotlib.pyplot as plt
+import matplotlib.animation
+plt.rcParams["animation.html"] = "jshtml"
+
+def display_episode(frames):
+    fig, ax = plt.subplots(figsize=(12,12))
+    imgplot = plt.imshow(frames[0])
+    def animate(i):
+        imgplot.set_data(frames[i])
+    animation = matplotlib.animation.FuncAnimation(fig, animate, frames=len(frames))
+    return animation
+
 # Check the maximum possible delay...180 not good for now
 def calculate_metric(env, timetable):
     positions = env.cur_episode
     prev_station = 0
-    delta = 250
+    delta = 400
     metric_result = []
     for i_agent in range(env.get_num_agents()):
         if not env.agents[i_agent].state == TrainState.MALFUNCTION:
@@ -60,8 +72,10 @@ def calculate_metric(env, timetable):
     return metric_normalized
 
 def choose_a_random_training_configuration(env, max_steps):
-    case = randint(0,3)
+    case = 0
     if case == 0:
+        env.agents[1].initial_position = (6,8)
+        env.agents[2].initial_position = (5,8)
         make_a_deterministic_interruption(env.agents[1], max_steps)
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return    
@@ -72,6 +86,7 @@ def choose_a_random_training_configuration(env, max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
         return
     elif case == 2:
+        env.agents[1].initial_position = (6,8)
         make_a_deterministic_interruption(env.agents[1], max_steps)
         env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
         return       
@@ -93,10 +108,10 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 2000
+n_episodes = 1000
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.995
+eps_decay = 0.99
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = 0 
@@ -120,10 +135,10 @@ widht = len(specs[0])
 height = len(specs)
 
 stations_position = []
-
-# Defining the name of the different stations
-for i in range(1, len(stations)):
-    stations_position.append(stations[i][0])
+    
+# Positions of the stations
+for i in range(len(stations)):
+    stations_position.append(stations[i].position)
 
 # Timetable conteins the station where the train should pass, from starting station to aim, and conteins the time at which
 # each train has to pass in the station, the last number represent the velocity of train (high velocity, intercity or regional)
@@ -152,7 +167,8 @@ divide_trains_in_station_rails(timetable, transition_map_example)
 control_timetable(timetable,transition_map_example)
 
 for i in range(len(timetable)):
-    print(timetable[i])
+    for j in range(len(timetable[i][0])):
+        print(timetable[i][0][j].name, 'Departure time' ,timetable[i][1][j], 'Train id', timetable[i][2].id)
  
 time.sleep(3)
 
@@ -221,7 +237,7 @@ for i in range(len(actions_scheduled)):
     print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
-                          screen_height=480,
+                          screen_height=720,
                           screen_width=720)  # Adjust these parameters to fit your resolution
 
 
@@ -326,6 +342,7 @@ env_renderer.reset()
 score = 0
 # Run episode
 frame_step = 0
+frames = []
 
 os.makedirs("output/frames", exist_ok=True)
 
@@ -436,10 +453,12 @@ for episode_idx in range(n_episodes + 1):
         step_timer.end()
 
         # Render an episode at some interval
-        if render:
+        frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+        frames.append(frame)
+        """if render:
             env_renderer.render_env(
                     show=True, show_observations = False, frames = True, episode = True, step = True
-                )
+                )"""
         # Update replay buffer and train agent
         if multi_agent:
             for agent in env.get_agent_handles():
@@ -532,31 +551,21 @@ for episode_idx in range(n_episodes + 1):
     writer.flush()
    
     
+animation = display_episode(frames)
+plt.show()
 
 
 # --------------------------------------- #
 # --------------- TESTING --------------- #
 # --------------------------------------- #
-import matplotlib.pyplot as plt
-import matplotlib.animation
-plt.rcParams["animation.html"] = "jshtml"
-
-def display_episode(frames):
-    fig, ax = plt.subplots(figsize=(12,12))
-    imgplot = plt.imshow(frames[0])
-    def animate(i):
-        imgplot.set_data(frames[i])
-    animation = matplotlib.animation.FuncAnimation(fig, animate, frames=len(frames))
-    return animation
-
 
 #################
 ##### TEST 1 ####
 #################
+# Reset environment and get initial observations for all agents
+env.reset()
 # Reset the rendering system
 env_renderer.reset()
-# Reset environment and get initial observations for all agents
-obs, info = env.reset(regenerate_rail=True, regenerate_schedule=True)
 # Change the position of the interrupted agents
 env.agents[1].initial_position = (6,10)
 env.agents[2].initial_position = (5,10)
@@ -567,24 +576,20 @@ score = 0
 
 for step in range(max_steps):
     # Broken agents
-    if training_flag == 'training0':
-        make_a_deterministic_interruption(env.agents[1], max_steps)
-        make_a_deterministic_interruption(env.agents[2], max_steps)
-    if training_flag == 'training1':
-        make_a_deterministic_interruption(env.agents[2], max_steps)
-        make_a_deterministic_interruption(env.agents[3], max_steps)
-    if training_flag == 'training1.1':
-        make_a_deterministic_interruption(env.agents[2], max_steps)
+    make_a_deterministic_interruption(env.agents[1], max_steps)
+    make_a_deterministic_interruption(env.agents[2], max_steps)
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
-    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
+    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
     frames.append(frame)
     frame_step += 1
     
@@ -596,8 +601,6 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-
-score += all_rewards[0]
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 
@@ -611,6 +614,7 @@ print(  'Test 1 concluded:'
             tasks_finished,
             metric
         ), end=" ")
+
 
 animation = display_episode(frames)
 plt.show()
@@ -629,6 +633,7 @@ env.agents[2].initial_position = (-1,0)
 
 frame_step = 0
 frames = []
+score = 0
 
 for step in range(max_steps):
     # Broken agents
@@ -642,13 +647,15 @@ for step in range(max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
 
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -662,7 +669,6 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-score += all_rewards[0]
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 
@@ -695,6 +701,7 @@ env.agents[2].initial_position = (5,14)
 
 frame_step = 0
 frames = []
+score = 0
 
 for step in range(max_steps):
     # Broken agents
@@ -708,13 +715,15 @@ for step in range(max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
 
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -728,7 +737,6 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-score += all_rewards[0]
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 
@@ -760,6 +768,7 @@ env.agents[2].initial_position = (-1,0)
 
 frame_step = 0
 frames = []
+score = 0
 
 for step in range(max_steps):
     # Broken agents
@@ -773,13 +782,15 @@ for step in range(max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
 
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -793,7 +804,7 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-score += all_rewards[0]
+
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 
@@ -827,6 +838,7 @@ env.agents[1].initial_position = (-1,0)
 
 frame_step = 0
 frames = []
+score = 0
 
 for step in range(max_steps):
     # Broken agents
@@ -840,13 +852,15 @@ for step in range(max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
 
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -860,8 +874,6 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-
-score += all_rewards[0]
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 
@@ -895,6 +907,7 @@ env.agents[1].initial_position = (-1,0)
 
 frame_step = 0
 frames = []
+score = 0
 
 for step in range(max_steps):
     # Broken agents
@@ -908,13 +921,15 @@ for step in range(max_steps):
         make_a_deterministic_interruption(env.agents[2], max_steps)
 
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps=eps_start)
+    action = policy.act(agent_obs[0])
 
     action_count[action] += 1
     actions_taken.append(action)
     action_dict.update({0: action})
     
     next_obs, all_rewards, done, info = env.step(action_dict)
+    
+    score += all_rewards[0]
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=True, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -928,7 +943,6 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
-score += all_rewards[0]
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 

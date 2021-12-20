@@ -26,7 +26,6 @@ from flatland.envs import agent_chains as ac
 
 from flatland.envs.observations import GlobalObsForRailEnv
 
-from flatland.envs.timetable_generators import timetable_generator
 from flatland.envs.step_utils.states import TrainState, StateTransitionSignals
 from flatland.envs.step_utils.transition_utils import check_valid_action
 from flatland.envs.step_utils import action_preprocessing
@@ -34,20 +33,20 @@ from flatland.envs.step_utils import env_utils
 
 from structures_rail import av_line
 
-from configuration import example_training
+from configuration import example_training, timetable_example
 
 # Penalities 
 step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
-stop_penality = 0                # penalty for stopping a moving agent
-reverse_penality = 0             # penalty for reversing the march of an agent
+stop_penality = -0.05               # penalty for stopping a moving agent
+reverse_penality = -0.07              # penalty for reversing the march of an agent
 skip_penality = 0                   # penalty for skipping a station
-target_not_reached_penalty = -7     # penalty for not reaching the final target (depot)
-default_skip_penalty = 10000
+target_not_reached_penalty = -20     # penalty for not reaching the final target (depot)
+default_skip_penalty = 100
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
-target_reward = 10        # reward for an agent reaching his final target
-station_passage_reward = 7 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
+target_reward = 30         # reward for an agent reaching his final target
+station_passage_reward = 10 # reward for an agent reaching intermediate station, the reward is wheighted with the delay of the agent
 
 # Flag for the training
 training = example_training
@@ -104,6 +103,9 @@ class RailEnv(Environment):
     For Round 2, they will be passed to the constructor as arguments, to allow for more flexibility.
 
     """
+    
+    cancellation_factor = 1
+    cancellation_time_buffer = 0
 
     def __init__(self,
                  width,
@@ -344,7 +346,7 @@ class RailEnv(Environment):
             self.distance_map.reset(self.agents, self.rail)
 
             # NEW : Time Schedule Generation
-            timetable = timetable_generator(self.agents, self.distance_map, 
+            timetable = timetable_generator(timetable_example, self.agents, self.distance_map, 
                                                agents_hints, self.np_random)
 
             #self._max_episode_steps = 250
@@ -386,6 +388,14 @@ class RailEnv(Environment):
         if hasattr(self, "renderer") and self.renderer is not None:
             self.renderer = None
         return observation_dict, info_dict
+    
+    def check_station_from_rails(self, timetable, rail):
+        for i in range(len(timetable)):
+            for j in range(len(timetable[i][0])):
+                for k in range(len(timetable[i][0][j].rails)):
+                    if rail == tuple(timetable[i][0][j].rails[k]):
+                        station = timetable[i][0][j]
+                        return station
 
 
     def _update_agent_positions_map(self, ignore_old_positions=True):
@@ -397,7 +407,7 @@ class RailEnv(Environment):
                 if agent.old_position is not None:
                     self.agent_positions[agent.old_position] = -1
     
-    def generate_state_transition_signals(self, agent, preprocessed_action, movement_allowed, target_time):
+    def generate_state_transition_signals(self, timetable, agent, preprocessed_action, movement_allowed, target_time):
         """ Generate State Transitions Signals used in the state machine """
         st_signals = StateTransitionSignals()
         
@@ -419,7 +429,9 @@ class RailEnv(Environment):
         # Target Reached
         if self._elapsed_steps >= target_time:
             # agent.target = [agent.target[0] - 1, agent.target[1]]
-            st_signals.target_reached = env_utils.fast_position_equal(agent.position, agent.target)
+            station = self.check_station_from_rails(timetable, agent.target)
+            for j in range(len(station.rails)):
+                st_signals.target_reached = env_utils.fast_position_equal(agent.position, station.rails[j])
         else:
             st_signals.target_reached = False
 
@@ -471,7 +483,7 @@ class RailEnv(Environment):
                     (agent.get_travel_time_on_shortest_path(self.distance_map) + self.cancellation_time_buffer)
 
             # Departed but never reached
-            if (agent.state.is_on_map_state()):
+            if (agent.state.is_on_map_state()) and not agent.state == TrainState.MALFUNCTION:
                 reward += target_not_reached_penalty
                 
                 pasted_agent_positions = self.cur_episode
@@ -550,17 +562,17 @@ class RailEnv(Environment):
         """
         action = self.agents[i_agent].action_saver.saved_action
         moving = self.agents[i_agent].moving
-        state = self.agents[i_agent].state
-        """
-        reward = None
+        state = self.agents[i_agent].state"""
+
+        reward = 0
 
         reward = step_penality
         """
         if action == RailEnvActions.REVERSE:
             reward += reverse_penality
         if not moving or state == TrainState.STOPPED:
-            reward += stop_penality
-        """
+            reward += stop_penality"""
+
         self.rewards_dict[i_agent] += reward
         
     def calculate_train_run(self, timetable, i_agent, specific_station_index):
@@ -708,7 +720,7 @@ class RailEnv(Environment):
         if agent.state == TrainState.DONE and agent.arrival_time is None:
             agent.arrival_time = self._elapsed_steps
             if self.remove_agents_at_target:
-                agent.position = None
+                agent.position = None    
 
     def check_intermediate_station_passage(self, step, i_agent, timetable):
             from operator import itemgetter
@@ -716,17 +728,27 @@ class RailEnv(Environment):
             if positions == []:
                 return
             reward = 0
-            stations_to_pass = timetable[i_agent][0]
+                        
+            rails_to_pass = []
+            for i in range(len(timetable[i_agent][0])):
+                for j in range(len(timetable[i_agent][0][i].rails)):
+                    rails_to_pass.append(tuple(timetable[i_agent][0][i].rails[j]))
 
-            if positions[step - 1][i_agent] in stations_to_pass and positions[step - 1][i_agent] not in self.previous_station[i_agent]:
+            if self.agents[i_agent].position in rails_to_pass and self.agents[i_agent].position not in self.previous_station[i_agent]:
 
-                self.previous_station[i_agent].append(positions[step - 1][i_agent])
+                if self.agents[i_agent].state == TrainState.DONE:
+                    for j in range(len(timetable[i_agent][0][-1].rails)):
+                        self.previous_station[i_agent].append(tuple(timetable[i_agent][0][-1].rails[j]))  # Final position reached by the agent
+                else:
+                    station = self.check_station_from_rails(timetable, positions[step - 1][i_agent])
+                    for j in range(len(timetable[i_agent][0][-1].rails)):
+                        self.previous_station[i_agent].append(tuple(station.rails[j]))
                 
                 reward += station_passage_reward
 
-                station_in_which_i_am = positions[step - 1][i_agent]
+                station_in_which_i_am = self.check_station_from_rails(timetable, self.agents[i_agent].position)
 
-                index = self.find_indices(timetable[i_agent][0], positions[step - 1][i_agent])
+                index = self.find_indices(timetable[i_agent][0], station_in_which_i_am)
                 difference = []
                 for num_station in range(len(index)):
                     difference.append(step - timetable[i_agent][1][index[num_station]])
@@ -735,53 +757,34 @@ class RailEnv(Environment):
                 index_of_my_station = index[index_of_min]
                 
                 station = timetable[i_agent][0][index_of_my_station]
-                train_type = timetable[i_agent][2]
+                train_type = timetable[i_agent][2].maximum_velocity
                 
                 specific_train_run = self.calculate_train_run(timetable, i_agent, index_of_my_station)
                 
                 index_of_my_station_for_my_train_run = specific_train_run[0].index(station)
                 
                 reward += self.calculate_delay_penalty(value_of_min, specific_train_run, station, train_type)
-
+                # Check if I have skipped a previous station
                 if index_of_my_station > 1:
                     previous_stations = specific_train_run[0][0:index_of_my_station_for_my_train_run]
-                    previous_times = specific_train_run[1][0:index_of_my_station_for_my_train_run]
-                    flag_station_passed = [False] * len(previous_stations)
+                    flag_station_passed = [False] * (len(previous_stations) - 1)
                     for past_positions in range(len(positions)):
                         for i_previous_station in range(1, index_of_my_station):
-                            if positions[past_positions][i_agent] == timetable[i_agent][0][index_of_my_station - i_previous_station]:
+                            if positions[past_positions][i_agent] == timetable[i_agent][0][i_previous_station].rails:
                                 self.rewards_dict[i_agent] += 0 
-                                flag_station_passed[index_of_my_station - i_previous_station] = True
+                                flag_station_passed[i_previous_station - 1] = True
                     
                     for i_previous_station in range(len(flag_station_passed)):
                         if not flag_station_passed[i_previous_station]: 
-                            station_skipped = previous_stations[0][i_previous_station]
-                            time_scheduled_for_station = previous_stations[1][i_previous_station] 
+                            station_skipped = previous_stations[i_previous_station]
+                            time_scheduled_for_station = specific_train_run[1][i_previous_station] 
                             reward += self.calculate_skip_penalty(timetable, index_of_my_station, station_skipped, 
                                                              time_scheduled_for_station, i_agent, station, train_type, specific_train_run)
                     self.rewards_dict[i_agent] += reward
                     return
-    """
-    def intermediate_station_reward(self, convoy_i, timetable):
-        reward = 0
-        positions = self.cur_episode
-        passed_positions_convoy_i = [row[convoy_i] for row in positions]
-        i = 0
-        initial_station = timetable[convoy_i][0][0]
-        for station_i in timetable[convoy_i][0]:
-            if station_i == initial_station:
-                continue
-            for positions in passed_positions_convoy_i:
-                if station_i == positions:
-                    index = self.find_indices(timetable[convoy_i][0], station_i)
-                    for time_index in index: 
-                        time_scheduled = timetable[convoy_i][1][time_index]
-                        time_difference = (time_scheduled - i)**2
-                        if time_difference == 0:
-                            time_difference = 1
-                        reward += station_passage_reward/time_difference
-                i += 1
-        return reward      """ 
+                
+                self.rewards_dict[i_agent] += reward
+
 
     def step(self, action_dict_: Dict[int, RailEnvActions]):
         """
@@ -895,7 +898,7 @@ class RailEnv(Environment):
             preprocessed_action = agent_transition_data.preprocessed_action
 
             ## Update states
-            state_transition_signals = self.generate_state_transition_signals(agent, preprocessed_action, movement_allowed, ending_time)
+            state_transition_signals = self.generate_state_transition_signals(timetable_example, agent, preprocessed_action, movement_allowed, ending_time)
             agent.state_machine.set_transition_signals(state_transition_signals)
             agent.state_machine.step()
 
@@ -925,12 +928,14 @@ class RailEnv(Environment):
             i_agent = agent.handle
 
             ## Update rewards 
-            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:                           
-                self.update_step_rewards(i_agent)
+            if agent.state.is_on_map_state():
+                if agent.state != TrainState.MALFUNCTION:                           
+                    self.update_step_rewards(i_agent)
 
             # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
-            if agent.state != TrainState.MALFUNCTION and agent.state.is_on_map_state:
-                self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
+            if agent.state.is_on_map_state() or agent.state == TrainState.DONE:
+                if agent.state != TrainState.MALFUNCTION: 
+                    self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
                 
             # Handle done state actions, optionally remove agents
             self.handle_done_state(agent)
@@ -998,6 +1003,8 @@ class RailEnv(Environment):
             if agent.state == TrainState.DONE and not self.dones_for_position[i_agent]:
                 pos = agent.target
                 self.dones_for_position[i_agent] = True
+                list_agents_state.append(pos)
+                continue
                 
             elif agent.state.is_off_map_state():
                 pos = (-1, 0) 
@@ -1151,10 +1158,10 @@ class RailEnv(Environment):
 
                 # High velocity line case
                 if (agent.position in av_line):  
-                    train_velocities[i_agent] = min(1, agents_hints['timetable'][i_agent][2])                
+                    train_velocities[i_agent] = min(1, agents_hints['timetable'][i_agent][2].maximum_velocity)                
                 # Regional line case
                 else:
-                    train_velocities[i_agent] = min(1/2, agents_hints['timetable'][i_agent][2])
+                    train_velocities[i_agent] = min(1/2, agents_hints['timetable'][i_agent][2].maximum_velocity)
 
             # If agent is not in the environment deafault velocity is 1/2
             else:

@@ -31,14 +31,14 @@ def control_timetable(timetable, railway_topology):
     for trains in range (len(timetable)):       
         # Check for all the stations
         # Calculate the difference of two different times, so i don't need the last term to cycle          
-        for stations in range (len(timetable[trains][1]) - 1):   
+        for stations in range (len(timetable[trains][1])-1):   
             if (timetable[trains][1][stations] - timetable[trains][1][stations + 1]) >= 0:
                 print('===================================================================================================================================')
                 print('Attention!!! The agent number', trains, 'has a problem in the timetable, times to reach stations', stations, 'and', (stations+1), 'are not right')
                 print('The time to reach the successive station SHOULD BE > 0, pay attenction to the timetable')
                 # Function that check if the time to reach a station defined by the timetable are possible or not,
                 # Return the time minimum time to reach two different stations depending on the distance and on the line type (high velocity, regional...)
-            time_to_next_station = time_to_reach_next_station(timetable[trains][0][stations], timetable[trains][0][stations + 1], railway_topology, timetable, trains)
+            time_to_next_station = time_to_reach_next_station(timetable[trains][0][stations].position , timetable[trains][0][stations + 1].position , railway_topology, timetable, trains)
             # Control if the time to reach the next station is possible (considering maximum velocities of lines and the distances between two stations)
             if time_to_next_station > (timetable[trains][1][stations+1]- timetable[trains][1][stations]):
                 print('===================================================================================================================================')
@@ -59,8 +59,8 @@ def divide_trains_in_station_rails(timetable, railway_topology):
     # Check how many different stations are in the timetable
     for i in range(len(timetable)): # for all the trains
         for k in range(len(timetable[i][0])): # for all the stations
-            if timetable[i][0][k] not in station_positions:
-                station_positions.append(timetable[i][0][k])
+            if timetable[i][0][k].position not in station_positions:
+                station_positions.append(timetable[i][0][k].position)
                 different_stations += 1
 
     # Indexes contein the indexes of the station like this
@@ -74,7 +74,7 @@ def divide_trains_in_station_rails(timetable, railway_topology):
         single_index = [0]*len(timetable[j][0])
         for k in range(len(timetable[j][0])): # for all the stations
             for i in range(len(station_positions)): # for all the different stations discovered
-                if station_positions[i] == timetable[j][0][k]:
+                if station_positions[i] == timetable[j][0][k].position:
                     single_index[k] = i
         indexes.append(single_index)
     
@@ -102,7 +102,12 @@ def divide_trains_in_station_rails(timetable, railway_topology):
                             # if the time at which they have to reach the station is similar (calculated the time needed in the stations for the trains)
                             if time_train_a - time_train_b < threshold_time and time_train_a - time_train_b > -threshold_time:
                                 # I change the goal of the convoy that first reach the station
-                                timetable[n][0][l] = (station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])
+                                timetable[n][3][l] = (station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])
+    for i in range(len(timetable)):
+        for j in range(len(timetable[i][0])):
+            if timetable[i][3][j] == 0:
+                timetable[i][3][j] = timetable[i][0][j].position
+            
                             
 
 
@@ -122,7 +127,7 @@ def action_to_do(timetable, railway_topology):
         # The partial result a train run
         path_partial_result = []
         for station in range(num_of_stations - 1): 
-            path_partial_result.append(a_star(railway_topology,timetable[train_i][0][station],timetable[train_i][0][station + 1]))
+            path_partial_result.append(a_star(railway_topology,timetable[train_i][3][station], timetable[train_i][3][station + 1]))
             if path_partial_result == []:
                 raise ImportError('There s not a path between station', station, 'and station', station + 1 )
 
@@ -202,10 +207,10 @@ def action_to_do(timetable, railway_topology):
                     if direction - prev_direction == 0:
                         # If I'm in an hig velocity line velocity is define only by the type of train
                         if path_result[train_i][station][step - 1] in av_line:
-                            velocity = timetable[train_i][2]
+                            velocity = timetable[train_i][2].maximum_velocity
                         # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
                         else:
-                            velocity = min(timetable[train_i][2], 1/2)
+                            velocity = min(timetable[train_i][2].maximum_velocity, 1/2)
                         for i in range(int(pow(velocity, -1))):
                             #print('Test per capire come varia',i, 'Treno numero', train_i)
                             actions_single_train_run.append(RailEnvActions.MOVE_FORWARD)
@@ -224,9 +229,9 @@ def action_to_do(timetable, railway_topology):
                     elif ((direction - prev_direction) == -2) or ((direction - prev_direction) == 2):
                         # If I'm in an hig velocity line velocity is define only by the type of train
                         if path_result[train_i][station][step - 1] in av_line:
-                            velocity = timetable[train_i][2]
+                            velocity = timetable[train_i][2].maximum_velocity
                         else:
-                            velocity = min(timetable[train_i][2], 1/2)
+                            velocity = min(timetable[train_i][2].maximum_velocity, 1/2)
                         for i in range(int(pow(velocity, -1))):
                             actions_single_train_run.append(RailEnvActions.REVERSE)
                         prev_direction = direction
@@ -236,10 +241,10 @@ def action_to_do(timetable, railway_topology):
                     elif ((direction - prev_direction == -1) and (multiple_path > 1)) or ((direction - prev_direction == +3)):
                         # If I'm in an hig velocity line velocity is define only by the type of train
                         if path_result[train_i][station][step - 1] in av_line:
-                            velocity = timetable[train_i][2]
+                            velocity = timetable[train_i][2].maximum_velocity
                         # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
                         else:
-                            velocity = min(timetable[train_i][2], 1/2)
+                            velocity = min(timetable[train_i][2].maximum_velocity, 1/2)
                         for i in range(int(pow(velocity, -1))):
                             actions_single_train_run.append(RailEnvActions.MOVE_LEFT)
                         prev_direction = direction
@@ -249,18 +254,18 @@ def action_to_do(timetable, railway_topology):
                     elif ((direction - prev_direction == 1) and (multiple_path > 1)) or ((direction - prev_direction == -3) ):
                         # If I'm in an hig velocity line velocity is define only by the type of train
                         if path_result[train_i][station][step - 1] in av_line:
-                            velocity = timetable[train_i][2]
+                            velocity = timetable[train_i][2].maximum_velocity
                         # If I'm in other line velocity is the minimum between 1/2 (the velocity of the line) and the type of train velocity
                         else:
-                            velocity = min(timetable[train_i][2], 1/2)
+                            velocity = min(timetable[train_i][2].maximum_velocity, 1/2)
                         for i in range(int(pow(velocity, -1))):
                             actions_single_train_run.append(RailEnvActions.MOVE_RIGHT)
                         prev_direction = direction
                     else:
                         if path_result[train_i][station][step - 1] in av_line:
-                            velocity = timetable[train_i][2]
+                            velocity = timetable[train_i][2].maximum_velocity
                         else:
-                            velocity = min(timetable[train_i][2], 1/2)
+                            velocity = min(timetable[train_i][2].maximum_velocity, 1/2)
                         for i in range(int(pow(velocity, -1))):
                             actions_single_train_run.append(RailEnvActions.MOVE_FORWARD)
                         # I'm arrived at the station?
@@ -284,7 +289,7 @@ def time_to_reach_next_station(departure_station_position, arrival_station_posit
     # First thing check the distance between two stations 
     result = a_star(railway_topology, departure_station_position, arrival_station_position)
     # Maximum velocity a train can achieve
-    train_velocity = schedule[train_number][2]
+    train_velocity = schedule[train_number][2].maximum_velocity
 
     lenght_path = len(result)  # distance between stations
 
@@ -323,23 +328,23 @@ def calculate_timetable(convoys, railway_topology):
             # The number of station to pass
             num_of_stations = len(single_convoy_schedule[num_of_runs].line_belongin.stations)
             # The station to stop
-            stations_to_stop_position = []
+            stations_to_stop = []
             # Direction not inverted?
             if not single_convoy_schedule[num_of_runs].inverse_train_direction:
                 for i in range(num_of_stations):
                     # append the station position in the right order
-                    stations_to_stop_position.append(single_convoy_schedule[num_of_runs].line_belongin.stations[i].position)
+                    stations_to_stop.append(single_convoy_schedule[num_of_runs].line_belongin.stations[i])
             # Direction inverdet?
             else:
                 for i in range(num_of_stations):
                     # append the station position in inverted order
-                    stations_to_stop_position.append(single_convoy_schedule[num_of_runs].line_belongin.stations[num_of_stations - 1 - i].position)
+                    stations_to_stop.append(single_convoy_schedule[num_of_runs].line_belongin.stations[num_of_stations - 1 - i])
             # Adding the starting time
             single_train_run.append(single_convoy_schedule[num_of_runs].starting_time)
 
             for stations in range(num_of_stations -1):
-                departure_station_position = stations_to_stop_position[stations]
-                arrival_station_position = stations_to_stop_position[stations + 1]
+                departure_station_position = stations_to_stop[stations].position
+                arrival_station_position = stations_to_stop[stations + 1].position
                 # First thing check the distance between two stations
                 result = a_star(railway_topology, departure_station_position, arrival_station_position)
                 # Maximum velocity a train can achieve
@@ -370,7 +375,7 @@ def calculate_timetable(convoys, railway_topology):
                         # sum of time needed, the precedence time and the waiting time at the station
                         single_train_run.append(int(time_needed + single_train_run[stations] + single_convoy_schedule[num_of_runs].line_belongin.stations[stations].min_wait_time[0]))
 
-            single_convoy.append(stations_to_stop_position)
+            single_convoy.append(stations_to_stop)
             single_convoy.append(single_train_run)
             
         timetable.append(single_convoy)
@@ -378,30 +383,32 @@ def calculate_timetable(convoys, railway_topology):
     # This is needed in order to obtein the timetable-standard structure
     final_timetable = [] # The final timetable
     timetable_single_convoy = [] # Timetable of a single convoy
-    timetable_position_example = [] # Partial timetable with the position of the stations to pass
+    timetable_stations_example = [] # Partial timetable with the position of the stations to pass
     timetable_time_example = []  # Partial timetable with the time at which reach the stations
-    single_position_timetable = []  # position and time of a single train run
+    single_stations_timetable = []  # position and time of a single train run
     single_time_timetable = []
+
 
     for i in range(len(timetable)):
         for j in range(len(timetable[i])):
             if j % 2 == 0:
-                timetable_position_example.append(timetable[i][j])
+                timetable_stations_example.append(timetable[i][j])
             else:
                 timetable_time_example.append(timetable[i][j])
-        for k in range(len(timetable_position_example)):
-            single_position_timetable += (timetable_position_example[k])
+        for k in range(len(timetable_stations_example)):
+            single_stations_timetable += (timetable_stations_example[k])
         for k in range(len(timetable_time_example)):
             single_time_timetable += timetable_time_example[k]
         # The standard timetable form is (positions, time, train velocity)
-        timetable_single_convoy.append(single_position_timetable)
+        timetable_single_convoy.append(single_stations_timetable)
         timetable_single_convoy.append(single_time_timetable)
-        timetable_single_convoy.append(convoys[i].maximum_velocity)
+        timetable_single_convoy.append(convoys[i])
+        timetable_single_convoy.append([0]*len(timetable[i][0]))   # Array for the rails of the stations in which the train have to stop
         # Final timetable
         final_timetable.append(timetable_single_convoy)
         # Restart the partial results
-        single_position_timetable = []
-        timetable_position_example = []
+        single_stations_timetable = []
+        timetable_stations_example = []
         single_time_timetable = []
         timetable_time_example = []
         timetable_single_convoy = []
