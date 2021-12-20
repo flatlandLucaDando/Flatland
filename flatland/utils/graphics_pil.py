@@ -392,7 +392,7 @@ class PILSVG(PILGL):
             "EE WW SE WN": "Weiche_horizontal_oben_rechts.png",
             "EE WW ES NW": "Weiche_horizontal_unten_links.png",
             "EE WW NE WS": "Weiche_horizontal_unten_rechts.png",
-            "EE WW NE WS WW EE": "Weiche_Symetrical_horizontal.png",
+            "NE NW ES WS WW EE": "Weiche_Symetrical_horizontal.png",
             "NN SS EE WW NW ES": "Weiche_Single_Slip.png",
             "NE NW ES WS": "Weiche_Symetrical.png",
             "NN SS EN SW": "Weiche_vertikal_oben_links.png",
