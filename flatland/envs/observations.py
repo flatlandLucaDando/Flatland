@@ -42,7 +42,6 @@ class TreeObsForRailEnv(ObservationBuilder):
     For details about the features in the tree observation see the get() function.
     """
 
-
     tree_explored_actions_char = ['L', 'F', 'R', 'B']
 
     def __init__(self, max_depth: int, predictor: PredictionBuilder = None):
@@ -96,7 +95,7 @@ class TreeObsForRailEnv(ObservationBuilder):
         for _agent in self.env.agents:
             if not _agent.state.is_off_map_state() and \
                 _agent.position:
-                self.location_has_agent[tuple(_agent.position)] = 1
+                self.location_has_agent[tuple(_agent.position)] = 1                
                 self.location_has_agent_direction[tuple(_agent.position)] = _agent.direction
                 self.location_has_agent_speed[tuple(_agent.position)] = _agent.speed_counter.speed
                 self.location_has_agent_malfunction[tuple(_agent.position)] = \
@@ -174,7 +173,7 @@ class TreeObsForRailEnv(ObservationBuilder):
             0 = no agent present other direction than myself
 
         #10:
-            malfunctioning/blokcing agents
+            malfunctioning/blocking agents
             n = number of time steps the oberved agent remains blocked
 
         #11:
@@ -236,6 +235,7 @@ class TreeObsForRailEnv(ObservationBuilder):
         if num_transitions == 1:
             orientation = np.argmax(possible_transitions)
 
+        # TODO permettere sempre nel nodo la direzione backward...Far sì che il ramo backward esista sempre
         for i, branch_direction in enumerate([(orientation + i) % 4 for i in range(-1, 3)]):
 
             if possible_transitions[branch_direction]:
@@ -246,6 +246,9 @@ class TreeObsForRailEnv(ObservationBuilder):
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = branch_observation
 
                 visited |= branch_visited
+
+            # elif branch_direction == 3: allora creo il branch e esploro il branch
+
             else:
                 # add cells filled with infinity if no transition is possible
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = -np.inf

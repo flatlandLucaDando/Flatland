@@ -393,7 +393,7 @@ class RailEnv(Environment):
         for i in range(len(timetable)):
             for j in range(len(timetable[i][0])):
                 for k in range(len(timetable[i][0][j].rails)):
-                    if rail == timetable[i][0][j].rails[k]:
+                    if rail == tuple(timetable[i][0][j].rails[k]):
                         station = timetable[i][0][j]
                         return station
 
@@ -406,25 +406,9 @@ class RailEnv(Environment):
                     self.agent_positions[agent.position] = agent.handle
                 if agent.old_position is not None:
                     self.agent_positions[agent.old_position] = -1
-                 
-                    
-    def check_station_in_timetable(self, timetable, target_position, i_agent):
-        time_difference = np.inf
-        station_in_which_i_am = 0
-        for i in range(len(timetable[i_agent][0])): # for all the stations
-            for j in range(timetable[i_agent][0][i].capacity):   # for all the rails
-                if target_position == tuple(timetable[i_agent][0][i].rails[j]):  
-                    # we have multiple train run in the timetable, so is important to calculate the real station 
-                    station_in_which_i_can_be = i  
-                    if self._elapsed_steps - timetable[i_agent][1][station_in_which_i_can_be] < time_difference:
-                        time_difference = self._elapsed_steps - timetable[i_agent][1][station_in_which_i_can_be]
-                        station_in_which_i_am = i   # index of the station in which the agent is
-        return station_in_which_i_am
-                    
-                
     
     def generate_state_transition_signals(self, timetable, agent, preprocessed_action, movement_allowed, target_time):
-        """ Generate State Transitions Signals used in the state machine """        
+        """ Generate State Transitions Signals used in the state machine """
         st_signals = StateTransitionSignals()
         
         # Malfunction starts when in_malfunction is set to true
@@ -441,21 +425,12 @@ class RailEnv(Environment):
 
         # Valid Movement action Given
         st_signals.valid_movement_action_given = preprocessed_action.is_moving_action() and movement_allowed
-        
 
         # Target Reached
         if self._elapsed_steps >= target_time:
             station = self.check_station_from_rails(timetable, agent.target)
             for j in range(len(station.rails)):
                 st_signals.target_reached = env_utils.fast_position_equal(agent.position, station.rails[j])
-                
-            if st_signals.target_reached:
-                station_index = self.check_station_in_timetable(timetable, agent.target, agent.handle)
-                if station_index >= len(timetable[agent.handle][0]):
-                    pass
-                else:
-                    agent.target = timetable[agent.handle][3][station_index]
-                    st_signals.target_reached = False
         else:
             st_signals.target_reached = False
 
@@ -762,11 +737,11 @@ class RailEnv(Environment):
 
                 if self.agents[i_agent].state == TrainState.DONE:
                     for j in range(len(timetable[i_agent][0][-1].rails)):
-                        self.previous_station[i_agent] = (tuple(timetable[i_agent][0][-1].rails[j]))  # Final position reached by the agent
+                        self.previous_station[i_agent].append(tuple(timetable[i_agent][0][-1].rails[j]))  # Final position reached by the agent
                 else:
                     station = self.check_station_from_rails(timetable, positions[step - 1][i_agent])
                     for j in range(len(timetable[i_agent][0][-1].rails)):
-                        self.previous_station[i_agent] = station.rails
+                        self.previous_station[i_agent].append(tuple(station.rails[j]))
                 
                 reward += station_passage_reward
 
@@ -938,8 +913,7 @@ class RailEnv(Environment):
                 elif movement_allowed and (agent.speed_counter.is_cell_exit):
                     agent.position = agent_transition_data.position
                     agent.direction = agent_transition_data.direction
-                    if state_transition_signals.target_reached:
-                        agent.state_machine.update_if_reached(agent.position, agent.target)
+                    agent.state_machine.update_if_reached(agent.position, agent.target)
 
             # Off map or on map state and position should match
             env_utils.state_position_sync_check(agent.state, agent.position, agent.handle)

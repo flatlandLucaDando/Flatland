@@ -113,10 +113,10 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 1
+n_episodes = 1000
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.99
+eps_decay = 0.995
 max_steps = 250     # 1440 one day
 checkpoint_interval = 100
 training_id = 0 
@@ -126,11 +126,13 @@ render = False
 # Flag for the first training
 training_flag = example_training
 # Flag active in case of interruptions
-interruption = True
+interruption = False
 # Flag to select the agent ----> multi agent or external controller
 multi_agent = True
 # Flag to save the video or not
 video_save = False
+# Flag to applicate RL also in case of no interruptions
+reinforcemente_learning = True
 
 
 # The specs for the custom railway generation are taken from structures.py file
@@ -425,10 +427,11 @@ for episode_idx in range(n_episodes + 1):
                 break
             if step >= timetable[a][1][0]:
                 # Normal plan to follow
-                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]) \
+                    or not reinforcemente_learning:
                     action = actions_scheduled[a][step - timetable[a][1][0]]
                 # Interruption
-                elif interruption:
+                elif interruption or reinforcemente_learning:
                     if multi_agent:
                         if info['action_required'][a]:
                             update_values[a] = True
@@ -462,8 +465,8 @@ for episode_idx in range(n_episodes + 1):
         step_timer.end()
 
         # Render an episode at some interval
-        frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
-        frames.append(frame)
+        #frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+        #frames.append(frame)
         """if render:
             env_renderer.render_env(
                     show=True, show_observations = False, frames = True, episode = True, step = True
@@ -560,8 +563,8 @@ for episode_idx in range(n_episodes + 1):
     writer.flush()
    
     
-animation = display_episode(frames)
-plt.show()
+#animation = display_episode(frames)
+#plt.show()
 
 
 # --------------------------------------- #
@@ -594,7 +597,7 @@ for step in range(max_steps):
     else:
         make_a_deterministic_interruption(env.agents[1], max_steps)
     update_values[0] = True
-    action = policy.act(agent_obs[0], eps = 1)
+    action = policy.act(agent_obs[0], eps = 0.01)
 
     action_count[action] += 1
     actions_taken.append(action)
@@ -633,8 +636,6 @@ print(  'Test 1 concluded:'
 
 animation = display_episode(frames)
 plt.show()
-
-
 
 
 

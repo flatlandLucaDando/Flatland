@@ -72,7 +72,7 @@ def custom_schedule_generator(timetable, speed_ratio_map: Mapping[float, float] 
 		# TODO capisci se così va bene o no
 		for agent_i in range (len(timetable)):
 			agents_position.append(timetable[agent_i][3][0])
-			agents_target.append(timetable[agent_i][3][-1])
+			agents_target.append(timetable[agent_i][3][1])
 
 
 		# Define the direction of the trains based on the rail they occupy

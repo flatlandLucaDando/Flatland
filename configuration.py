@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_training = 'one_rail'
+example_training = 1
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -35,12 +35,8 @@ if example_training == 1:
 	genova_urbana = Line(type_line = Connection_type.NORMAL_RAIL, 
 		stations = (quarto_station, quinto_station), stops = (1, 1))
 
-	stations = []
-	stations.append([quarto_station.position, 0.5])
-	stations.append([quinto_station.position, 0.5])
-
-	stations_objects = [quarto_station, quinto_station]
-
+	stations = [quarto_station, quinto_station]
+ 
 	# Define the train runs
 	train_run_0 = Train_run(genova_urbana, starting_time = 3, from_depot = True)
 	train_run_1 = Train_run(genova_urbana, starting_time = 10, from_depot = True, inverse_train_direction = True)
@@ -62,6 +58,7 @@ if example_training == 1:
 	# Generating the timetable
 	# The timetable is composed by (station positions, time at which reach the stations, maximum train velocity)
 	timetable_example = calculate_timetable(convoys, rail)
+ 
 """ 
 	# TODO crea una funzione (per ora non è una funzione, serve quella) per esportare le timetable come excel
 	from pandas import DataFrame

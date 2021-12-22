@@ -130,11 +130,7 @@ class Station:
 
 		# Eliminate duplicates
 		rails_position = []
-		rails_position_single = []
 		for i in range(len(self.rails)):
-			for j in range(len(self.rails[i])):
-				if self.rails[i][j] not in rails_position_single:
-					rails_position_single.append(self.rails[i][j])
-			rails_position.append(rails_position_single)
-			rails_position_single = []
+			if self.rails[i] not in rails_position:
+				rails_position.append((self.rails[i]))
 		self.rails = rails_position
