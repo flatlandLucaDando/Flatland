@@ -118,7 +118,7 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 1000
+n_episodes = 300
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.995
@@ -594,15 +594,14 @@ score = 0
 for step in range(max_steps):
     for a in range(env.get_num_agents()):
         update_values[a] = True
-        action = policy.act(agent_obs[a], eps = 0.01)
+        action = policy.act(agent_obs[a])
 
         action_count[action] += 1
         actions_taken.append(action)
         action_dict.update({a: action})
-        
-        next_obs, all_rewards, done, info = env.step(action_dict)
-        
         score += all_rewards[a]
+        
+    next_obs, all_rewards, done, info = env.step(action_dict)
 
     frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
     frames.append(frame)
@@ -619,6 +618,7 @@ metric = calculate_metric(env, timetable)
 
 tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
+print()
 print(  'Test 1 concluded:'
         '\t 🏆 Score: {:.3f}'
         '\t Agent completed {}'

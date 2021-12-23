@@ -10,7 +10,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_training = 1
+example_training = 3
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -180,9 +180,9 @@ if example_training == 3:
 		additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)
 	milano_station = Station('Milano', position = (15,49), capacity = 2, min_wait_time = [2, 2, 1],
 		additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)
-	torino_station = Station('Torino', position = (9,1), capacity = 2, min_wait_time = [2, 2, 1],
+	torino_station = Station('Torino', position = (8,13), capacity = 2, min_wait_time = [2, 2, 1],
 		additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)
-	novara_station = Station('Novara', position = (3,40), capacity = 2, min_wait_time = [2, 2, 1],
+	novara_station = Station('Novara', position = (2,40), capacity = 2, min_wait_time = [2, 2, 1],
 		additional_wait_percent = [0.5, 1, 1.5], importance = 80, railway_topology = rail)
 
 	# Define the connections between station
@@ -213,14 +213,7 @@ if example_training == 3:
 	genova_torino = Line(type_line = Connection_type.NORMAL_RAIL, 
 		stations = (genova_station, torino_station), stops = (1, 1))
 
-	stations = []
-	stations.append([genova_station.position, 1])
-	stations.append([pavia_station.position, 1])
-	stations.append([milano_station.position, 1])
-	stations.append([torino_station.position, 0.5])
-	stations.append([novara_station.position, 0.5])
-
-	stations_objects = [genova_station, pavia_station, milano_station, torino_station, novara_station]
+	stations = [genova_station, pavia_station, milano_station, torino_station, novara_station]
 
 	# Defining the train runs
 	# convoy 1
