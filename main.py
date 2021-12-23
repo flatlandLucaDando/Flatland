@@ -579,6 +579,60 @@ for episode_idx in range(n_episodes + 1):
 # --------------- TESTING --------------- #
 # --------------------------------------- #
 
+######################
+##### TEST DEBUG ####
+#####################
+# Reset environment and get initial observations for all agents
+env.reset()
+# Reset the rendering system
+env_renderer.reset()
+
+frame_step = 0
+frames = []
+score = 0
+
+for step in range(max_steps):
+    for a in range(env.get_num_agents()):
+        update_values[a] = True
+        action = policy.act(agent_obs[a], eps = 0.01)
+
+        action_count[action] += 1
+        actions_taken.append(action)
+        action_dict.update({a: action})
+        
+        next_obs, all_rewards, done, info = env.step(action_dict)
+        
+        score += all_rewards[a]
+
+    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+    frames.append(frame)
+    frame_step += 1
+    
+    if done['__all__']:
+        break
+
+    if check_conflicts(env):
+        break
+    
+# metric most possible near to 0
+metric = calculate_metric(env, timetable)
+
+tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+
+print(  'Test 1 concluded:'
+        '\t 🏆 Score: {:.3f}'
+        '\t Agent completed {}'
+        '\t Metric {}'.format(
+            score,
+            tasks_finished,
+            metric
+        ), end=" ")
+
+
+animation = display_episode(frames)
+plt.show()
+
+
 #################
 ##### TEST 1 ####
 #################
