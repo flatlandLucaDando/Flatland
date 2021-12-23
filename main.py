@@ -47,6 +47,11 @@ def display_episode(frames):
     animation = matplotlib.animation.FuncAnimation(fig, animate, frames=len(frames))
     return animation
 
+def check_conflicts(env):
+    for a in range(len(env.agents)):
+        if env.agents[a].state_machine.st_signals.movement_conflict == True:
+            return True
+
 # Check the maximum possible delay...180 not good for now
 def calculate_metric(env, timetable):
     positions = env.cur_episode
@@ -427,11 +432,11 @@ for episode_idx in range(n_episodes + 1):
                 break
             if step >= timetable[a][1][0]:
                 # Normal plan to follow
-                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]) \
-                    or not reinforcemente_learning:
-                    action = actions_scheduled[a][step - timetable[a][1][0]]
+                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
+                    if not reinforcemente_learning:
+                        action = actions_scheduled[a][step - timetable[a][1][0]]
                 # Interruption
-                elif interruption or reinforcemente_learning:
+                if interruption or reinforcemente_learning:
                     if multi_agent:
                         if info['action_required'][a]:
                             update_values[a] = True
@@ -505,6 +510,9 @@ for episode_idx in range(n_episodes + 1):
             ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
             break
         
+        if check_conflicts(env):
+            break
+        
     print()
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
@@ -571,6 +579,60 @@ for episode_idx in range(n_episodes + 1):
 # --------------- TESTING --------------- #
 # --------------------------------------- #
 
+######################
+##### TEST DEBUG ####
+#####################
+# Reset environment and get initial observations for all agents
+env.reset()
+# Reset the rendering system
+env_renderer.reset()
+
+frame_step = 0
+frames = []
+score = 0
+
+for step in range(max_steps):
+    for a in range(env.get_num_agents()):
+        update_values[a] = True
+        action = policy.act(agent_obs[a], eps = 0.01)
+
+        action_count[action] += 1
+        actions_taken.append(action)
+        action_dict.update({a: action})
+        
+        next_obs, all_rewards, done, info = env.step(action_dict)
+        
+        score += all_rewards[a]
+
+    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+    frames.append(frame)
+    frame_step += 1
+    
+    if done['__all__']:
+        break
+
+    if check_conflicts(env):
+        break
+    
+# metric most possible near to 0
+metric = calculate_metric(env, timetable)
+
+tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+
+print(  'Test 1 concluded:'
+        '\t 🏆 Score: {:.3f}'
+        '\t Agent completed {}'
+        '\t Metric {}'.format(
+            score,
+            tasks_finished,
+            metric
+        ), end=" ")
+
+
+animation = display_episode(frames)
+plt.show()
+
+
 #################
 ##### TEST 1 ####
 #################
@@ -619,6 +681,9 @@ for step in range(max_steps):
         ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
         break
 
+    if check_conflicts(env):
+        break
+    
 # metric most possible near to 0
 metric = calculate_metric(env, timetable)
 

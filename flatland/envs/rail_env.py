@@ -445,24 +445,30 @@ class RailEnv(Environment):
 
         # Target Reached
         if self._elapsed_steps >= target_time/10:
+            
+            
+                            
             station = self.check_station_from_rails(timetable, agent.target)
             for j in range(len(station.rails)):
                 st_signals.target_reached = env_utils.fast_position_equal(agent.position, station.rails[j])
-                
-            if st_signals.target_reached:
-                station_index = self.check_station_in_timetable(timetable, agent.target, agent.handle)
-                if station_index >= len(timetable[agent.handle][0]):
-                    pass
-                else:
-                    agent.target = timetable[agent.handle][3][station_index]
-                    st_signals.target_reached = False
+                if st_signals.target_reached:
+                    station_index = self.check_station_in_timetable(timetable, agent.target, agent.handle)
+                    if station_index >= len(timetable[agent.handle][0]) - 1:
+                        pass
+                    else:
+                        agent.target = timetable[agent.handle][3][station_index + 1]
+                        st_signals.target_reached = False
+                    break
         else:
             st_signals.target_reached = False
 
         # Movement conflict - Multiple trains trying to move into same cell
         # If speed counter is not in cell exit, the train can enter the cell
         st_signals.movement_conflict = (not movement_allowed) and agent.speed_counter.is_cell_exit
-
+        
+        if st_signals.movement_conflict:
+            self.rewards_dict[agent.handle] += -10000
+            
         return st_signals
 
     def _handle_end_reward(self, agent: EnvAgent, timetable) -> int:
