@@ -444,7 +444,7 @@ class RailEnv(Environment):
         
 
         # Target Reached
-        if self._elapsed_steps >= target_time:
+        if self._elapsed_steps >= target_time/10:
             station = self.check_station_from_rails(timetable, agent.target)
             for j in range(len(station.rails)):
                 st_signals.target_reached = env_utils.fast_position_equal(agent.position, station.rails[j])
