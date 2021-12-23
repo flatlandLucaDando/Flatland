@@ -138,6 +138,8 @@ multi_agent = True
 video_save = False
 # Flag to applicate RL also in case of no interruptions
 reinforcemente_learning = True
+# Flag to output different things important for the debug
+debug = False
 
 
 # The specs for the custom railway generation are taken from structures.py file
@@ -196,12 +198,13 @@ print('------- Calculating the action scheduled')
 actions_scheduled = action_to_do(timetable, transition_map_example)
 
 # DEBUG
-for i in range(len(actions_scheduled)):
-    print()
-    print(actions_scheduled[i])
-    print()
+if debug:
+    for i in range(len(actions_scheduled)):
+        print()
+        print(actions_scheduled[i])
+        print()
 
-time.sleep(3)
+    time.sleep(3)
 
 if multi_agent:
 
