@@ -467,10 +467,10 @@ for episode_idx in range(n_episodes + 1):
         # Render an episode at some interval
         #frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
         #frames.append(frame)
-        """if render:
+        if render:
             env_renderer.render_env(
                     show=True, show_observations = False, frames = True, episode = True, step = True
-                )"""
+                )
         # Update replay buffer and train agent
         if multi_agent:
             for agent in env.get_agent_handles():
