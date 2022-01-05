@@ -550,8 +550,12 @@ class GlobalObsForRailEnv(ObservationBuilder):
             - fourth channel containing agent/other agent fractional speeds
             - fifth channel containing number of other agents ready to depart
 
-        - obs_targets: Two 2D arrays (map_height, map_width, 2) containing respectively the position of the given agent\
-         target and the positions of the other agents targets (flag only, no counter!).
+        - obs_targets: Two 2D arrays (map_height, map_width, 2) containing respectively the position of the given agent target \
+                        and the positions of the other agents targets (flag only, no counter!).
+                        
+                        
+                        (map_height, map_width, num_of_agents) ----> ogni griglia avrà elementi di dimensione (n_runs)
+                        
     """
 
     def __init__(self):
@@ -754,3 +758,150 @@ class LocalObsForRailEnv(ObservationBuilder):
             return temp_visible_data
         else:
             return visible, rel_coords
+
+
+
+
+
+class GlobalObsModifiedRailEnv(ObservationBuilder):
+    
+    """
+    Gives a global observation of the entire rail environment.
+    The observation is composed of the following elements:
+    
+    - Tipo di binario
+    - Stazione
+    - Treno (posizione, direzione, velocità, malfunzionamento, pronto a partire)
+    - Punto di percorso della timetable
+    - Orario corrispondente
+    +
+    - Posizione treno (riga-colonna)
+    - Posizione target
+    
+        - transition map array with dimensions [height, width, 16] (assuming 16 bits encoding of transitions)
+
+        - obs_agents_state: A 3D array (map_height, map_width, 8) with
+            - 1st channel containing the agents position and direction
+            - 2nd channel containing the other agents positions and direction
+            - 3th channel containing agent/other agent malfunctions
+            - 4th channel containing agent/other agent fractional speeds
+            - 5th channel containing number of other agents ready to depart
+            
+            - 6th channel containing the position of the stations with their rails (position of each rail)
+            - 7th channel containing the position of the station to reach depending on where i am in the timetable
+                                    (the order of the stations to be reach defined by the timetable)
+            - 8th channel containing the time at wich the agent have to arrive at the station selected
+            (- 9th channel containing the type of rail for each cell)
+
+        - obs_targets: Two 2D arrays (map_height, map_width, 2) 
+            - the position of the given agent target  +  time at which agent have to reach it  (?) TODO controlla se va bene così
+            - the positions of the other agents targets (flag only, no counter!).
+                   
+            (map_height, map_width, num_of_agents) ----> ogni griglia avrà elementi di dimensione (n_runs)                      
+    """
+
+    def __init__(self):
+        super(GlobalObsModifiedRailEnv, self).__init__()
+
+    def set_env(self, env: Environment):
+        super().set_env(env)
+
+    def reset(self):
+        self.rail_obs = np.zeros((self.env.height, self.env.width, 16))
+        for i in range(self.rail_obs.shape[0]):
+            for j in range(self.rail_obs.shape[1]):
+                bitlist = [int(digit) for digit in bin(self.env.rail.get_full_transitions(i, j))[2:]]
+                bitlist = [0] * (16 - len(bitlist)) + bitlist
+                self.rail_obs[i, j] = np.array(bitlist)
+
+    def get(self, handle: int = 0) -> (np.ndarray, np.ndarray, np.ndarray):
+        
+        i_agent = handle
+
+        agent = self.env.agents[handle]
+        if agent.state.is_off_map_state():
+            agent_virtual_position = agent.initial_position
+        elif agent.state.is_on_map_state():
+            agent_virtual_position = agent.position
+        elif agent.state == TrainState.DONE:
+            agent_virtual_position = agent.target
+        else:
+            return None
+
+        obs_targets = np.zeros((self.env.height, self.env.width, 2))
+        obs_agents_state = np.zeros((self.env.height, self.env.width, 9)) - 1
+
+        # TODO can we do this more elegantly?
+        # for r in range(self.env.height):
+        #     for c in range(self.env.width):
+        #         obs_agents_state[(r, c)][4] = 0
+        obs_agents_state[:, :, 4] = 0
+        obs_agents_state[:, :, 5] = 0
+
+        obs_agents_state[agent_virtual_position][0] = agent.direction
+        obs_targets[agent.target][0] = 1
+        
+        # filling with station informations
+        railò, optionals = self.env.rail_generator(
+                self.env.width, self.env.height, self.env.number_of_agents, self.env.num_resets, self.env.np_random)
+        
+        timetable = optionals['agents_hints']['timetable']
+        
+        # filling with the station positions
+        for agent in range(len(timetable)):
+            for i_station in range(len(timetable[agent][0])):
+                # This consider only the station position
+                station_position = timetable[agent][0][i_station].position
+                obs_agents_state[station_position][5] = 1
+                """
+                # This consider all the rails of the stations
+                number_of_rails = len(timetable[agent][0][i_station].rails)
+                for rails in range(number_of_rails):
+                    # Taking each rail position
+                    rail_position = timetable[agent][0][i_station].rails[rails]
+                    obs_agents_state[rail_position][5] = 1
+                """
+        
+        # filling with the order of stations 
+        for i_station in range(len(timetable[i_agent][0])):
+            station_position = timetable[i_agent][0][i_station].position
+            obs_agents_state[station_position][6] = i_station
+        
+        # filling with the arrival time at the stations
+        for i_station in range(len(timetable[i_agent][0])):
+            time_i_station = timetable[i_agent][1][i_station]
+            station_position = timetable[i_agent][0][i_station].position
+            obs_agents_state[station_position][7] = time_i_station
+            
+        for i in range(self.env.height):
+            for j in range(self.env.width):
+                rail_to_convert = self.rail_obs[i,j].astype("int")
+                rail_type = np.packbits(rail_to_convert, axis=0).view(np.uint16)
+                obs_agents_state[i,j][8] = rail_type
+               
+        for i in range(len(self.env.agents)):
+            other_agent: EnvAgent = self.env.agents[i]
+
+            # ignore other agents not in the grid any more
+            if other_agent.state == TrainState.DONE:
+                continue
+
+            obs_targets[other_agent.target][1] = 1
+
+            # second to fourth channel only if in the grid
+            if other_agent.position is not None:
+                # second channel only for other agents
+                if i != handle:
+                    obs_agents_state[other_agent.position][1] = other_agent.direction
+                obs_agents_state[other_agent.position][2] = other_agent.malfunction_handler.malfunction_down_counter
+                obs_agents_state[other_agent.position][3] = other_agent.speed_counter.speed
+            # fifth channel: all ready to depart on this position
+            if other_agent.state.is_off_map_state():
+                obs_agents_state[other_agent.initial_position][4] += 1
+                
+        observation = np.zeros((self.env.height, self.env.width, 11))
+        for r in range(self.env.height):
+            for c in range(self.env.width):
+                observation[r,c] = np.append(obs_agents_state[r,c], obs_targets[r,c])
+        
+        return observation

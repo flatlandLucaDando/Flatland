@@ -16,6 +16,7 @@ from flatland.core.transition_map import GridTransitionMap
 from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.distance_map import DistanceMap
 from flatland.envs.rail_env_action import RailEnvActions
+from flatland.core.grid.grid4_astar import a_star
 
 from flatland.envs import malfunction_generators as mal_gen
 from flatland.envs import rail_generators as rail_gen
@@ -30,15 +31,16 @@ from flatland.envs.step_utils.states import TrainState, StateTransitionSignals
 from flatland.envs.step_utils.transition_utils import check_valid_action
 from flatland.envs.step_utils import action_preprocessing
 from flatland.envs.step_utils import env_utils
+from flatland.utils.fast_methods import fast_count_nonzero, fast_argmax, fast_isclose
 
 from structures_rail import av_line
 
 from configuration import example_training, timetable_example
 
 # Penalities 
-step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
-stop_penality = -0.05               # penalty for stopping a moving agent
-reverse_penality = -0.07              # penalty for reversing the march of an agent
+maximum_step_penality = - 0.01               # a step is time passing, so a penality for each step is needed
+stop_penality = 0               # penalty for stopping a moving agent
+reverse_penality = 0              # penalty for reversing the march of an agent
 skip_penality = 0                   # penalty for skipping a station
 target_not_reached_penalty = -20     # penalty for not reaching the final target (depot)
 default_skip_penalty = 100
@@ -204,6 +206,8 @@ class RailEnv(Environment):
 
         self.action_space = [6]
         
+        self.maximum_distance_from_target = 1
+        
         self.previous_station = [[(-1,0)]] * number_of_agents
         
         self.dones_for_position = [False] * number_of_agents
@@ -365,6 +369,8 @@ class RailEnv(Environment):
         self.num_resets += 1
         self._elapsed_steps = 0
         
+        self.maximum_distance_from_target = 1
+        
         self.previous_station = [[(-1,0)]] * self.number_of_agents
         
         self.dones_for_position = [False] * self.number_of_agents
@@ -396,7 +402,53 @@ class RailEnv(Environment):
                     if rail == timetable[i][0][j].rails[k]:
                         station = timetable[i][0][j]
                         return station
-
+       
+                    
+    def calculate_metric(self, timetable):
+        positions = self.cur_episode
+        prev_station = 0
+        delta = 400
+        metric_result = []
+        for i_agent in range(self.get_num_agents()):
+            if not self.agents[i_agent].state == TrainState.MALFUNCTION:
+                station_vector = [delta] * len(timetable[i_agent][0])
+                for i_station in range(len(timetable[i_agent][0])):
+                    for step in range(len(positions)):
+                        if positions[step][i_agent] in timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
+                            prev_station = positions[step][i_agent]
+                            # If the train arrive first with respect to scheduled time gg
+                            if step - timetable[i_agent][1][i_station] < 0:
+                                distance_delay = 0
+                            else:
+                                distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
+                            station_vector[i_station] = distance_delay
+                metric_result.append(station_vector)
+        metric_sum = sum(sum(x) for x in metric_result)
+        dimension = 0
+        for i in range(len(metric_result)):
+            for j in range(len(metric_result[i])):
+                dimension += 1
+        metric_normalized = 1 - (metric_sum / (delta*dimension))
+        
+        return metric_normalized
+    
+    def calculate_sparse_reward(self, metric ,station_number):
+        
+        # threshold = (1 - n^-1) - 20%
+        # if agents skip one station and have a certain threshold of delay ----> negative reward
+        # for more strict penalty decrease the 20% value
+        threshold = (1 - pow(station_number, -1)) - (1 - pow(station_number, -1)) * 15 / 100
+        maximum_reward = 10
+        
+        #     /              maximum value
+        #    /
+        #   /
+        #--/-------------   threshold value
+        # /
+        #/
+        reward = - maximum_reward * (metric - 1)/(threshold-1) + maximum_reward
+        
+        return reward
 
     def _update_agent_positions_map(self, ignore_old_positions=True):
         """ Update the agent_positions array for agents that changed positions """
@@ -467,8 +519,8 @@ class RailEnv(Environment):
         st_signals.movement_conflict = (not movement_allowed) and agent.speed_counter.is_cell_exit
         
         if st_signals.movement_conflict:
-            self.rewards_dict[agent.handle] += -10000
-            
+            self.rewards_dict[agent.handle] += -100
+        
         return st_signals
 
     def _handle_end_reward(self, agent: EnvAgent, timetable) -> int:
@@ -494,13 +546,30 @@ class RailEnv(Environment):
         #reward = self.intermediate_station_reward(i_agent, timetable)
 
         # agent done? (arrival_time is not None)
+        
+        metric = self.calculate_metric(timetable)
+        
+        num_of_station = 0
+        
+        for i_convoy in range(len(timetable)):
+            for i_station in range(len(timetable[0][i_convoy])):
+                num_of_station += 1
+        
+        reward = self.calculate_sparse_reward(metric, num_of_station)
+        
         if agent.state == TrainState.DONE:
+            self.dones[i_agent] = True
+        
+        return reward
+        
+        """if agent.state == TrainState.DONE:
             # if agent arrived earlier or on time = 0
             # if agent arrived later = -ve reward based on how late
             reward += target_reward
             self.dones[i_agent] = True
-            # DELAY
-            delay = min(agent.latest_arrival - agent.arrival_time, 0)
+            # DELAY (scheduled time - real arrival time)
+            delay = min(agent.latest_arrival - agent.arrival_time, 0)  
+            
             delay_penalty = delay * 0.7 * 0.7/3 # FORMULA DATA DAL PROF DA AGGIUSTARE
             reward += delay_penalty
             #reward = min(agent.latest_arrival - agent.arrival_time, 0)
@@ -532,12 +601,8 @@ class RailEnv(Environment):
                 # I give an high penalty
                 reward += - default_skip_penalty
                 return reward
-                            
-                              
-                # DELAY
-                #reward = agent.get_current_delay(self._elapsed_steps, self.distance_map)
         
-        return reward
+        return reward"""
 
     def preprocess_action(self, action, agent):
         """
@@ -562,6 +627,48 @@ class RailEnv(Environment):
 
         return action
     
+    def check_action(self, agent: EnvAgent, action: RailEnvActions):
+        """
+        Parameters
+        ----------
+        agent : EnvAgent
+        action : RailEnvActions
+
+        Returns
+        -------
+        Tuple[Grid4TransitionsEnum,Tuple[int,int]]
+
+        """
+        transition_valid = None
+        possible_transitions = self.rail.get_transitions(*agent.position, agent.direction)
+        num_transitions = fast_count_nonzero(possible_transitions)
+
+        new_direction = agent.direction
+        if action == RailEnvActions.MOVE_LEFT:
+            new_direction = agent.direction - 1
+            if num_transitions <= 1:
+                transition_valid = False
+
+        elif action == RailEnvActions.MOVE_RIGHT:
+            new_direction = agent.direction + 1
+            if num_transitions <= 1:
+                transition_valid = False
+
+        # TODO control when this is not possible
+        elif action == RailEnvActions.REVERSE:
+            new_direction = agent.direction + 2
+            transition_valid = True
+
+        new_direction %= 4
+
+        if action == RailEnvActions.MOVE_FORWARD and num_transitions == 1:
+            # - dead-end, straight line or curved line;
+            # new_direction will be the only valid transition
+            # - take only available transition
+            new_direction = fast_argmax(possible_transitions)
+            transition_valid = True
+        return new_direction, transition_valid
+    
     def clear_rewards_dict(self):
         """ Reset the rewards dictionary """
         self.rewards_dict = {i_agent: 0 for i_agent in range(len(self.agents))}
@@ -584,6 +691,10 @@ class RailEnv(Environment):
         }
         return info_dict
     
+    def calculate_step_reward(self, distance, maximum_distance):
+        
+        reward = (distance / maximum_distance) * maximum_step_penality
+    
     def update_step_rewards(self, i_agent):
         """
         Update the rewards dict for agent id i_agent for every timestep
@@ -593,10 +704,18 @@ class RailEnv(Environment):
         action = self.agents[i_agent].action_saver.saved_action
         moving = self.agents[i_agent].moving
         state = self.agents[i_agent].state"""
+        
+        agent = self.agents[i_agent]
 
         reward = 0
+        
+        distance_from_target = len(a_star(self.rail, agent.position, agent.target, respect_rail_directions = False))
+        
+        if distance_from_target > self.maximum_distance_from_target:
+            self.maximum_distance_from_target = distance_from_target
+            
+        reward = (distance_from_target / self.maximum_distance_from_target) * maximum_step_penality
 
-        reward = step_penality
         """
         if action == RailEnvActions.REVERSE:
             reward += reverse_penality
@@ -722,9 +841,12 @@ class RailEnv(Environment):
         
         train_importance = train_type
         #station_importance = station.importance
-        station_importance = 0.7  # TODO modificalo !!!!!
+        station_importance = station.importance / 10
         
         penalty = - (delay*train_importance*station_importance)/number_of_station_to_pass
+        
+        if delay < 0:
+            penalty = station_passage_reward
         
         return penalty
 
@@ -780,10 +902,14 @@ class RailEnv(Environment):
 
                 index = self.find_indices(timetable[i_agent][0], station_in_which_i_am)
                 difference = []
+                difference_abs = []
                 for num_station in range(len(index)):
-                    difference.append(step - timetable[i_agent][1][index[num_station]])
-
-                index_of_min, value_of_min = min(enumerate(difference), key=itemgetter(1))
+                    difference.append((step - timetable[i_agent][1][index[num_station]])) 
+                    difference_abs.append(abs(step - timetable[i_agent][1][index[num_station]]))
+                # Use the absolute values to calculate the index of the min 
+                index_of_min, value_of_min = min(enumerate(difference_abs), key=itemgetter(1))
+                # Use the real difference (with informations about dealy or advance) to calculate the delay or advance
+                value_of_min = difference[index_of_min]
                 index_of_my_station = index[index_of_min]
                 
                 station = timetable[i_agent][0][index_of_my_station]
@@ -905,7 +1031,7 @@ class RailEnv(Environment):
             # This is for storing and later checking for conflicts of agents trying to occupy same cell                                                    
             self.motionCheck.addAgent(i_agent, agent.position, new_position)
 
-        # Find conflicts between trains trying to occupy same cell  TODO controlla i bug
+        # Find conflicts between trains trying to occupy same cell
         self.motionCheck.find_conflicts()
         
         for agent in self.agents:
@@ -915,8 +1041,6 @@ class RailEnv(Environment):
             if agent.malfunction_handler.in_malfunction:
                 movement_allowed = False
             else:
-                # TODO check how the check motion is gestito, fai si che una reverse action sia sempre 
-                # possibile ma attenzione quando c'è un treno vicino
                 movement_allowed = self.motionCheck.check_motion(i_agent, agent.position) 
 
 
@@ -963,10 +1087,10 @@ class RailEnv(Environment):
                 if agent.state != TrainState.MALFUNCTION:                           
                     self.update_step_rewards(i_agent)
 
-            # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
+            """ # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
             if agent.state.is_on_map_state() or agent.state == TrainState.DONE:
                 if agent.state != TrainState.MALFUNCTION: 
-                    self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])
+                    self.check_intermediate_station_passage(self._elapsed_steps, i_agent, optionals['agents_hints']['timetable'])"""
                 
             # Handle done state actions, optionally remove agents
             self.handle_done_state(agent)

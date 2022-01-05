@@ -4,13 +4,14 @@ import os
 from argparse import Namespace
 from pprint import pprint
 from random import *
+from datetime import datetime
 
 from torch.utils.tensorboard import SummaryWriter
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
 from flatland.envs.malfunction_generators import MalfunctionParameters, ParamMalfunctionGen
-from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
+from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv, GlobalObsModifiedRailEnv
 # First of all we import the Flatland rail environment
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
@@ -27,9 +28,10 @@ from configuration import railway_example, stations, timetable_example, example_
 from flatland.envs.agent import RandomAgent
 from flatland.envs.step_utils.states import TrainState
 from flatland.envs.predictions import ShortestPathPredictorForRailEnv
+from flatland.utils.deadlock_check import find_and_punish_deadlock
 
 from flatland.utils.timer import Timer
-from flatland.utils.observation_utils import normalize_observation
+from flatland.utils.observation_utils import normalize_global_observation, normalize_observation
 from reinforcement_learning.dddqn_policy import DDDQNPolicy
 # Import training and observation parameters
 from parameters import training_params, obs_params
@@ -63,9 +65,13 @@ def calculate_metric(env, timetable):
             station_vector = [delta] * len(timetable[i_agent][0])
             for i_station in range(len(timetable[i_agent][0])):
                 for step in range(len(positions)):
-                    if positions[step][i_agent] == timetable[i_agent][0][i_station] and positions[step][i_agent] != prev_station:
+                    if positions[step][i_agent] in timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
                         prev_station = positions[step][i_agent]
-                        distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
+                        # If the train arrive first with respect to scheduled time gg
+                        if step - timetable[i_agent][1][i_station] < 0:
+                            distance_delay = 0
+                        else:
+                            distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
                         station_vector[i_station] = distance_delay
             metric_result.append(station_vector)
     metric_sum = sum(sum(x) for x in metric_result)
@@ -74,6 +80,7 @@ def calculate_metric(env, timetable):
         for j in range(len(metric_result[i])):
             dimension += 1
     metric_normalized = 1 - (metric_sum / (delta*dimension))
+    
     return metric_normalized
 
 def choose_a_random_training_configuration(env, max_steps):
@@ -118,13 +125,25 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 300
+n_episodes = 10000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.995
-max_steps = 250     # 1440 one day
+max_steps = 200     # 1440 one day
 checkpoint_interval = 100
-training_id = 0 
+ # Unique ID for this training
+now = datetime.now()
+training_id = now.strftime('%y%m%d%H%M%S')
+
+#########################################################
+# Parameters that should change the results:
+
+# eps_decay 
+# step_maximum_penality
+# % used in the sparse reward
+# penalty given in the function find_and_punish_deadlock
+#########################################################
+
 render = False
 
 ######### FLAGS ##########
@@ -140,6 +159,8 @@ video_save = False
 reinforcemente_learning = True
 # Flag to output different things important for the debug
 debug = False
+# flag to select the tree observer
+tree_observer = False
 
 
 # The specs for the custom railway generation are taken from structures.py file
@@ -206,7 +227,7 @@ if debug:
 
     time.sleep(3)
 
-if multi_agent:
+if multi_agent and tree_observer:
 
     observation_parameters = Namespace(**obs_params)
 
@@ -217,6 +238,8 @@ if multi_agent:
     # Observation builder
     predictor = ShortestPathPredictorForRailEnv(observation_max_path_depth)
     Observer = TreeObsForRailEnv(max_depth=observation_tree_depth, predictor=predictor)
+if multi_agent:
+    Observer = GlobalObsModifiedRailEnv()
 else:
     Observer = GlobalObsForRailEnv()
     # Ricordarsi che noi vogliamo applicare il RL solo in un intorno della linea dove c'è stata l'interruzione
@@ -251,9 +274,9 @@ env.reset()
 delay_a_train(delay = 250, train = env.agents[1], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
 delay_a_train(delay = 250, train = env.agents[2], delay_time = 2, time_of_train_generation = 1, actions = actions_scheduled)
 '''
-
-for i in range(len(actions_scheduled)):
-    print(actions_scheduled[i])
+if debug:
+    for i in range(len(actions_scheduled)):
+        print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
                           screen_height=720,
@@ -263,10 +286,14 @@ env_renderer = RenderTool(env,
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
 if multi_agent:
+    if tree_observer:
+        n_features_per_node = env.obs_builder.observation_dim
+        n_nodes = sum([np.power(4, i) for i in range(observation_tree_depth + 1)])
+        state_size = n_features_per_node * n_nodes
+    
     n_agents = env.get_num_agents()
-    n_features_per_node = env.obs_builder.observation_dim
-    n_nodes = sum([np.power(4, i) for i in range(observation_tree_depth + 1)])
-    state_size = n_features_per_node * n_nodes
+    observation = env.obs_builder.get()
+    state_size = observation.size
 
     action_size = env.action_space[0]
 
@@ -396,8 +423,11 @@ for episode_idx in range(n_episodes + 1):
     if multi_agent:
         # Build initial agent-specific observations
         for agent in env.get_agent_handles():
-            if obs[agent]:
-                agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
+            if obs[agent] != []:
+                if tree_observer:
+                    agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                else:
+                    agent_obs[agent] = normalize_global_observation(obs[agent])
                 agent_prev_obs[agent] = agent_obs[agent].copy()
     else:
         for agent in env.get_agent_handles():
@@ -427,8 +457,6 @@ for episode_idx in range(n_episodes + 1):
         #       - each column represent the action the train has to do at each time instant
         
         for a in range(env.get_num_agents()):
-            if env.agents[a].state == TrainState.DONE:
-                env.dones[a] = True
             if env.agents[a].state == TrainState.MALFUNCTION:
                 interruption = True
             if not multi_agent and interruption: # debug 
@@ -470,7 +498,12 @@ for episode_idx in range(n_episodes + 1):
         # Environment step
         step_timer.start()
         next_obs, all_rewards, done, info = env.step(action_dict)
+        for agent_handle in env.get_agent_handles():
+                dones[agent_handle] = (env.agents[agent_handle].state == TrainState.DONE)
         step_timer.end()
+        
+        deadlocked_agents, all_rewards, = find_and_punish_deadlock(env, all_rewards,
+                                                                       0)
 
         # Render an episode at some interval
         #frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
@@ -492,9 +525,12 @@ for episode_idx in range(n_episodes + 1):
                     agent_prev_action[agent] = action_dict[agent]
 
                 # Preprocess the new observations
-                if next_obs[agent]:
+                if next_obs[agent] != []:
                     preproc_timer.start()
-                    agent_obs[agent] = normalize_observation(next_obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                    if tree_observer:
+                        agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                    else:
+                        agent_obs[agent] = normalize_global_observation(obs[agent])
                     preproc_timer.end()
 
                 score += all_rewards[agent]
@@ -622,7 +658,7 @@ metric = calculate_metric(env, timetable)
 tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
 print()
-print(  'Test 1 concluded:'
+print(  'Test 0 concluded:'
         '\t 🏆 Score: {:.3f}'
         '\t Agent completed {}'
         '\t Metric {}'.format(
@@ -692,6 +728,7 @@ metric = calculate_metric(env, timetable)
 
 tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
+print()
 print(  'Test 1 concluded:'
         '\t 🏆 Score: {:.3f}'
         '\t Agent completed {}'

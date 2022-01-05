@@ -122,3 +122,22 @@ def normalize_observation(observation, tree_depth: int, observation_radius=0):
     agent_data = np.clip(agent_data, -1, 1)
     normalized_obs = np.concatenate((np.concatenate((data, distance)), agent_data))
     return normalized_obs
+
+def normalize_global_observation(observation):
+    observation_to_modify = observation
+    number_of_features = len(observation_to_modify[0,0])
+    for i in range(number_of_features):
+        array_to_be_normalized = observation_to_modify[:,:,i]
+        normalize_value = np.max(array_to_be_normalized)
+        array_normalized = np.zeros((len(array_to_be_normalized),len(array_to_be_normalized[0])))
+        for j in range(len(array_to_be_normalized)):
+            for k in range(len(array_to_be_normalized[j])):
+                if array_to_be_normalized[j][k] != -1:
+                    array_normalized[j][k] = array_to_be_normalized[j][k]/normalize_value
+        observation_to_modify[:,:,i] = array_normalized
+        
+    observation_normalized = observation_to_modify.flatten()
+    
+    return observation_normalized
+        
+        

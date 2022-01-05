@@ -39,7 +39,7 @@ class AStarNode:
 
 def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
            a_star_distance_function: IntVector2DDistance = Vec2d.get_manhattan_distance, avoid_rails=False,
-           respect_transition_validity=True, forbidden_cells: IntVector2DArray = None) -> IntVector2DArray:
+           respect_transition_validity=True, forbidden_cells: IntVector2DArray = None, respect_rail_directions = True) -> IntVector2DArray:
     """
 
     :param avoid_rails:
@@ -117,10 +117,14 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
 
             # validate positions
             #
-
-            if not grid_map.check_transition_is_possible(prev_pos, current_node.pos, node_pos) \
-             and respect_transition_validity:
-                continue
+            if respect_rail_directions:
+                if not grid_map.check_transition_is_possible(prev_pos, current_node.pos, node_pos) \
+                    and respect_transition_validity:
+                    continue
+            else:
+                if not grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) \
+                    and respect_transition_validity:
+                    continue
 
             '''
             if grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) and respect_transition_validity:
