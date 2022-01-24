@@ -635,9 +635,12 @@ class GridTransitionMap(TransitionMap):
 
             if not self.transitions.is_valid(new_trans_e):
                 return False
-
+        next_pos_transition = self.grid[new_pos]
+        if next_pos_transition == 0:
+            return False
         # is transition is valid?
         return self.transitions.is_valid(new_trans)
+    
 
     # Function to check if a transition is possible/valide or the train/agent can't go there
     def check_transition_is_possible(self, previous_position, current_position, new_position):
@@ -687,58 +690,6 @@ class GridTransitionMap(TransitionMap):
             return False 
         #print('**************************')
         #print(direction, previous_position, current_position, new_position)
-  
- 
-        
-    def validate_new_transition(self, prev_pos: IntVector2D, current_pos: IntVector2D,
-                                new_pos: IntVector2D, end_pos: IntVector2D):
-        """
-        Utility function to test that a path drawn by a-start algorithm uses valid transition objects.
-        We us this to quide a-star as there are many transition elements that are not allowed in RailEnv
-
-        :param prev_pos: The previous position we were checking
-        :param current_pos: The current position we are checking
-        :param new_pos: Possible child position we move into
-        :param end_pos: End cell of path we are drawing
-        :return: True if the transition is valid, False if transition element is illegal
-        """
-        # start by getting direction used to get to current node
-        # and direction from current node to possible child node
-        new_dir = get_direction(current_pos, new_pos)
-        if prev_pos is not None:
-            current_dir = get_direction(prev_pos, current_pos)
-        else:
-            current_dir = new_dir
-        # create new transition that would go to child
-        new_trans = self.grid[current_pos]
-        if prev_pos is None:
-            if new_trans == 0:
-                # need to flip direction because of how end points are defined
-                new_trans = self.transitions.set_transition(new_trans, mirror(current_dir), new_dir, 1)
-            else:
-                # check if matches existing layout
-                new_trans = self.transitions.set_transition(new_trans, current_dir, new_dir, 1)
-        else:
-            # set the forward path
-            new_trans = self.transitions.set_transition(new_trans, current_dir, new_dir, 1)
-            # set the backwards path
-            new_trans = self.transitions.set_transition(new_trans, mirror(new_dir), mirror(current_dir), 1)
-        if Vec2d.is_equal(new_pos, end_pos):
-            # need to validate end pos setup as well
-            new_trans_e = self.grid[end_pos]
-            if new_trans_e == 0:
-                # need to flip direction because of how end points are defined
-                new_trans_e = self.transitions.set_transition(new_trans_e, new_dir, mirror(new_dir), 1)
-            else:
-                # check if matches existing layout
-                new_trans_e = self.transitions.set_transition(new_trans_e, new_dir, new_dir, 1)
-
-            if not self.transitions.is_valid(new_trans_e):
-                return False
-
-        # is transition is valid?
-        return self.transitions.is_valid(new_trans)
-
 
 # DOESNT NEED THIS FUNCTION 
 # MAYBE IN FUTURE THIS WILL BE NEEDED SO DONT DELETE FOR NOW

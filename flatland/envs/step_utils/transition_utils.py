@@ -33,9 +33,9 @@ def check_action(action, position, direction, rail):
         if num_transitions <= 1:
             transition_valid = False
 
-    elif action == RailEnvActions.REVERSE:
+    """    elif action == RailEnvActions.REVERSE:
         new_direction =  direction + 2
-        transition_valid = True
+        transition_valid = True"""
 
 
     new_direction %= 4  # Dipam : Why?

@@ -125,14 +125,14 @@ def a_star(grid_map: GridTransitionMap, start: IntVector2D, end: IntVector2D,
                 if not grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) \
                     and respect_transition_validity:
                     continue
-
-            '''
-            if grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) and respect_transition_validity:
+                
+            """else 
+                if grid_map.validate_new_transition(prev_pos, current_node.pos, node_pos, end_node.pos) and respect_transition_validity:
                    # and grid_map.check_direction_of_railroad(prev_pos, current_node.pos, node_pos):
-                print('=========================================')
-                print(prev_pos, current_node.pos, node_pos)
-                continue
-            '''
+                    print('=========================================')
+                    print(prev_pos, current_node.pos, node_pos)
+                    continue"""
+            
 
 
             # create new node

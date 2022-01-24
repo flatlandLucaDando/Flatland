@@ -28,6 +28,14 @@ def min_gt(seq, val):
         idx -= 1
     return min
 
+def tree_normalization(obs):
+    
+    normalized_value = []
+    maximum_value = max(obs)
+    minimum_value = min(obs)
+    normalized_value.append(np.clip(obs, minimum_value, maximum_value))
+        
+    return normalized_value   
 
 def norm_obs_clip(obs, clip_min=-1, clip_max=1, fixed_radius=0, normalize_to_range=False):
     """
@@ -53,12 +61,12 @@ def norm_obs_clip(obs, clip_min=-1, clip_max=1, fixed_radius=0, normalize_to_ran
     return np.clip((np.array(obs) - min_obs) / norm, clip_min, clip_max)
 
 
-def _split_node_into_feature_groups(node) -> (np.ndarray, np.ndarray, np.ndarray):
+def _split_node_into_feature_groups(node):
     data = np.zeros(6)
     distance = np.zeros(1)
     agent_data = np.zeros(4)
 
-    data[0] = node.dist_own_target_encountered
+    data[0] = node.dist_other_agent_encountered
     data[1] = node.dist_other_target_encountered
     data[2] = node.dist_other_agent_encountered
     data[3] = node.dist_potential_conflict
@@ -74,53 +82,81 @@ def _split_node_into_feature_groups(node) -> (np.ndarray, np.ndarray, np.ndarray
 
     return data, distance, agent_data
 
+def _split_node_into_feature_groups_new(node):
+    data = np.zeros(10)
+    agent_data = np.zeros(5)
+    
+    data[0] = node.dist_other_agent_encountered
+    data[1] = node.dist_potential_conflict
+    data[2] = node.dist_unusable_switch
+    data[3] = node.dist_to_next_branch
+    
+    data[4] = node.station_positions
+    data[5] = node.station_index
+    data[6] = node.time_at_which_reach_station
+    data[7] = node.station_positions_other_agent_0
+    data[8] = node.station_index_other_agent_0
+    data[9] = node.time_at_which_reach_station_other_agent_0
 
-def _split_subtree_into_feature_groups(node, current_tree_depth: int, max_tree_depth: int) -> (np.ndarray, np.ndarray, np.ndarray):
+    agent_data[0] = node.num_agents_same_direction
+    agent_data[1] = node.num_agents_opposite_direction
+    agent_data[2] = node.num_agents_malfunctioning
+    agent_data[3] = node.num_agents_ready_to_depart
+    agent_data[4] = node.speed_min_fractional
+
+    return data, agent_data
+
+
+def _split_subtree_into_feature_groups(node, current_tree_depth: int, max_tree_depth: int):
     if node == -np.inf:
         remaining_depth = max_tree_depth - current_tree_depth
         # reference: https://stackoverflow.com/questions/515214/total-number-of-nodes-in-a-tree-data-structure
         num_remaining_nodes = int((4 ** (remaining_depth + 1) - 1) / (4 - 1))
-        return [-np.inf] * num_remaining_nodes * 6, [-np.inf] * num_remaining_nodes, [-np.inf] * num_remaining_nodes * 4
+        return [-np.inf] * num_remaining_nodes * 10, [-np.inf] * num_remaining_nodes * 5
 
-    data, distance, agent_data = _split_node_into_feature_groups(node)
+    data, agent_data = _split_node_into_feature_groups_new(node)
 
     if not node.childs:
-        return data, distance, agent_data
+        return data, agent_data
 
     for direction in TreeObsForRailEnv.tree_explored_actions_char:
-        sub_data, sub_distance, sub_agent_data = _split_subtree_into_feature_groups(node.childs[direction], current_tree_depth + 1, max_tree_depth)
+        sub_data, sub_agent_data = _split_subtree_into_feature_groups(node.childs[direction], current_tree_depth + 1, max_tree_depth)
         data = np.concatenate((data, sub_data))
-        distance = np.concatenate((distance, sub_distance))
         agent_data = np.concatenate((agent_data, sub_agent_data))
 
-    return data, distance, agent_data
+    return data, agent_data
 
 
-def split_tree_into_feature_groups(tree, max_tree_depth: int) -> (np.ndarray, np.ndarray, np.ndarray):
+def split_tree_into_feature_groups(tree, max_tree_depth: int):
     """
     This function splits the tree into three difference arrays of values
     """
-    data, distance, agent_data = _split_node_into_feature_groups(tree)
+    data, agent_data = _split_node_into_feature_groups_new(tree)
 
     for direction in TreeObsForRailEnv.tree_explored_actions_char:
-        sub_data, sub_distance, sub_agent_data = _split_subtree_into_feature_groups(tree.childs[direction], 1, max_tree_depth)
+        sub_data, sub_agent_data = _split_subtree_into_feature_groups(tree.childs[direction], 1, max_tree_depth)
         data = np.concatenate((data, sub_data))
-        distance = np.concatenate((distance, sub_distance))
         agent_data = np.concatenate((agent_data, sub_agent_data))
 
-    return data, distance, agent_data
+    return data, agent_data
 
 
 def normalize_observation(observation, tree_depth: int, observation_radius=0):
     """
     This function normalizes the observation used by the RL algorithm
     """
-    data, distance, agent_data = split_tree_into_feature_groups(observation, tree_depth)
-
+    data, agent_data = split_tree_into_feature_groups(observation, tree_depth)
+    
     data = norm_obs_clip(data, fixed_radius=observation_radius)
-    distance = norm_obs_clip(distance, normalize_to_range=True)
+    """data = tree_normalization(data)
+    distance = tree_normalization(distance)"""
     agent_data = np.clip(agent_data, -1, 1)
-    normalized_obs = np.concatenate((np.concatenate((data, distance)), agent_data))
+    #normalized_obs = np.concatenate((np.concatenate((data, distance)), agent_data))
+    normalized_obs = np.zeros(len(data)+ len(agent_data))
+    for i in range(len(data)):
+        normalized_obs[i] = data[i]
+    for k in range(len(agent_data)):
+        normalized_obs[k + len(data)] = agent_data[k]
     return normalized_obs
 
 def normalize_global_observation(observation):
@@ -129,11 +165,12 @@ def normalize_global_observation(observation):
     for i in range(number_of_features):
         array_to_be_normalized = observation_to_modify[:,:,i]
         normalize_value = np.max(array_to_be_normalized)
+        if normalize_value == 0:
+            normalize_value = 0.0001
         array_normalized = np.zeros((len(array_to_be_normalized),len(array_to_be_normalized[0])))
         for j in range(len(array_to_be_normalized)):
             for k in range(len(array_to_be_normalized[j])):
-                if array_to_be_normalized[j][k] != -1:
-                    array_normalized[j][k] = array_to_be_normalized[j][k]/normalize_value
+                array_normalized[j][k] = array_to_be_normalized[j][k]/normalize_value
         observation_to_modify[:,:,i] = array_normalized
         
     observation_normalized = observation_to_modify.flatten()

@@ -6,12 +6,14 @@ from pprint import pprint
 from random import *
 from datetime import datetime
 
+import torch
+
 from torch.utils.tensorboard import SummaryWriter
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
 from flatland.envs.malfunction_generators import MalfunctionParameters, ParamMalfunctionGen
-from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv, GlobalObsModifiedRailEnv
+from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv, GlobalObsModifiedRailEnv, TreeTimetableObservation
 # First of all we import the Flatland rail environment
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
@@ -53,35 +55,6 @@ def check_conflicts(env):
     for a in range(len(env.agents)):
         if env.agents[a].state_machine.st_signals.movement_conflict == True:
             return True
-
-# Check the maximum possible delay...180 not good for now
-def calculate_metric(env, timetable):
-    positions = env.cur_episode
-    prev_station = 0
-    delta = 400
-    metric_result = []
-    for i_agent in range(env.get_num_agents()):
-        if not env.agents[i_agent].state == TrainState.MALFUNCTION:
-            station_vector = [delta] * len(timetable[i_agent][0])
-            for i_station in range(len(timetable[i_agent][0])):
-                for step in range(len(positions)):
-                    if positions[step][i_agent] in timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
-                        prev_station = positions[step][i_agent]
-                        # If the train arrive first with respect to scheduled time gg
-                        if step - timetable[i_agent][1][i_station] < 0:
-                            distance_delay = 0
-                        else:
-                            distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
-                        station_vector[i_station] = distance_delay
-            metric_result.append(station_vector)
-    metric_sum = sum(sum(x) for x in metric_result)
-    dimension = 0
-    for i in range(len(metric_result)):
-        for j in range(len(metric_result[i])):
-            dimension += 1
-    metric_normalized = 1 - (metric_sum / (delta*dimension))
-    
-    return metric_normalized
 
 def choose_a_random_training_configuration(env, max_steps):
     if example_training == 'training0':
@@ -125,11 +98,11 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 10000
+n_episodes = 7500
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.995
-max_steps = 200     # 1440 one day
+eps_decay = 0.9997
+max_steps = 250     # 1440 one day
 checkpoint_interval = 100
  # Unique ID for this training
 now = datetime.now()
@@ -160,8 +133,7 @@ reinforcemente_learning = True
 # Flag to output different things important for the debug
 debug = False
 # flag to select the tree observer
-tree_observer = False
-
+tree_observer = True
 
 # The specs for the custom railway generation are taken from structures.py file
 specs = railway_example
@@ -237,8 +209,8 @@ if multi_agent and tree_observer:
 
     # Observation builder
     predictor = ShortestPathPredictorForRailEnv(observation_max_path_depth)
-    Observer = TreeObsForRailEnv(max_depth=observation_tree_depth, predictor=predictor)
-if multi_agent:
+    Observer = TreeTimetableObservation(max_depth=observation_tree_depth, predictor=predictor)
+elif multi_agent:
     Observer = GlobalObsModifiedRailEnv()
 else:
     Observer = GlobalObsForRailEnv()
@@ -279,8 +251,8 @@ if debug:
         print(actions_scheduled[i])
 
 env_renderer = RenderTool(env,
-                          screen_height=720,
-                          screen_width=720)  # Adjust these parameters to fit your resolution
+                          screen_height=1080,
+                          screen_width=1080)  # Adjust these parameters to fit your resolution
 
 
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
@@ -290,11 +262,11 @@ if multi_agent:
         n_features_per_node = env.obs_builder.observation_dim
         n_nodes = sum([np.power(4, i) for i in range(observation_tree_depth + 1)])
         state_size = n_features_per_node * n_nodes
-    
+    else:
+        observation = env.obs_builder.get()
+        state_size = observation.size
+        
     n_agents = env.get_num_agents()
-    observation = env.obs_builder.get()
-    state_size = observation.size
-
     action_size = env.action_space[0]
 
     action_count = [0] * action_size
@@ -365,7 +337,7 @@ for a in range(env.get_num_agents()):
     action_dict.update({a: action})
 # Do the environment step
 
-observations, rewards, dones, information = env.step(action_dict)
+observations, rewards, done, information = env.step(action_dict)
 
 print("\n The following agents can register an action:")
 print("========================================")
@@ -389,6 +361,10 @@ score = 0
 # Run episode
 frame_step = 0
 frames = []
+
+# Conflicts 
+num_of_conflict = 0
+avg_num_of_conflict = 0
 
 os.makedirs("output/frames", exist_ok=True)
 
@@ -418,17 +394,17 @@ for episode_idx in range(n_episodes + 1):
 
     score = 0
     nb_steps = 0
+    metric = 0
     actions_taken = []
 
     if multi_agent:
         # Build initial agent-specific observations
         for agent in env.get_agent_handles():
-            if obs[agent] != []:
-                if tree_observer:
-                    agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
-                else:
-                    agent_obs[agent] = normalize_global_observation(obs[agent])
-                agent_prev_obs[agent] = agent_obs[agent].copy()
+            if tree_observer:
+                agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
+            else:
+                agent_obs[agent] = normalize_global_observation(obs[agent])
+            agent_prev_obs[agent] = agent_obs[agent].copy()
     else:
         for agent in env.get_agent_handles():
             agent_obs[agent] = obs[agent]
@@ -471,7 +447,7 @@ for episode_idx in range(n_episodes + 1):
                     if multi_agent:
                         if info['action_required'][a]:
                             update_values[a] = True
-                            action = policy.act(agent_obs[a], eps=eps_start)
+                            action = policy.act(a, agent_obs[a], eps=eps_start)
 
                             action_count[action] += 1
                             actions_taken.append(action)
@@ -499,11 +475,10 @@ for episode_idx in range(n_episodes + 1):
         step_timer.start()
         next_obs, all_rewards, done, info = env.step(action_dict)
         for agent_handle in env.get_agent_handles():
-                dones[agent_handle] = (env.agents[agent_handle].state == TrainState.DONE)
+                done[agent_handle] = (env.agents[agent_handle].state == TrainState.DONE)
         step_timer.end()
         
-        deadlocked_agents, all_rewards, = find_and_punish_deadlock(env, all_rewards,
-                                                                       0)
+        deadlocked_agents, all_rewards, = find_and_punish_deadlock(env, all_rewards, 0)
 
         # Render an episode at some interval
         #frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
@@ -518,20 +493,19 @@ for episode_idx in range(n_episodes + 1):
                 if update_values[agent] or done['__all__']:
                     # Only learn from timesteps where somethings happened
                     learn_timer.start()
-                    policy.step(agent_prev_obs[agent], agent_prev_action[agent], all_rewards[agent], agent_obs[agent], done[agent])
+                    policy.step(agent, agent_prev_obs[agent], agent_prev_action[agent], all_rewards[agent], agent_obs[agent], done[agent])
                     learn_timer.end()
 
                     agent_prev_obs[agent] = agent_obs[agent].copy()
                     agent_prev_action[agent] = action_dict[agent]
 
                 # Preprocess the new observations
-                if next_obs[agent] != []:
-                    preproc_timer.start()
-                    if tree_observer:
-                        agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
-                    else:
-                        agent_obs[agent] = normalize_global_observation(obs[agent])
-                    preproc_timer.end()
+                preproc_timer.start()
+                if tree_observer:
+                    agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                else:
+                    agent_obs[agent] = normalize_global_observation(obs[agent])
+                preproc_timer.end()
 
                 score += all_rewards[agent]
 
@@ -544,19 +518,25 @@ for episode_idx in range(n_episodes + 1):
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
         
         if check_conflicts(env):
+            
+            num_of_conflict += 1
+            
             break
         
     print()
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
     # metric near to 1 is great result
-    metric = calculate_metric(env, timetable)
+    for agent_handle in env.get_agent_handles():
+        metric += env.calculate_metric_single_agent(timetable, agent_handle)
+    
+    metric = metric/len(env.get_agent_handles())
     
     if multi_agent:
         # Epsilon decay
@@ -564,11 +544,15 @@ for episode_idx in range(n_episodes + 1):
 
         # Collect information about training
         tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+        tasks_deadlocked = sum(deadlocked_agents[idx] for idx in env.get_agent_handles())
         completion = tasks_finished / max(1, env.get_num_agents())
+        deadlocked = tasks_deadlocked / max(1, env.get_num_agents())
         normalized_score = score / (max_steps * env.get_num_agents())
         action_probs = action_count / np.sum(action_count)
         action_count = [1] * action_size
-
+        
+        avg_num_of_conflict = num_of_conflict / (episode_idx + 1)
+        
         smoothing = 0.99
         smoothed_normalized_score = smoothed_normalized_score * smoothing + normalized_score * (1.0 - smoothing)
         smoothed_completion = smoothed_completion * smoothing + completion * (1.0 - smoothing)
@@ -588,25 +572,32 @@ for episode_idx in range(n_episodes + 1):
             '\r🚂 Episode {}'
             '\t 🏆 Score: {:.3f}'
             ' Avg: {:.3f}'
-            '\t 💯 Done: {:.2f}%'
-            ' Avg: {:.2f}%'
+            '\t 💯 Done: {}%'
+            ' Avg: {:.3f}%'
+            '\t Num of conflicts: {}'
+            ' Avg: {:.3f}'
             '\t 🎲 Epsilon: {:.3f} '
             '\t 🔀 Action Probs: {}'
-            '\t Metric {}'.format(
+            '\t Metric: {}'.format(
                 episode_idx,
                 normalized_score,
                 smoothed_normalized_score,
                 100 * completion,
                 100 * smoothed_completion,
+                num_of_conflict,
+                avg_num_of_conflict,
                 eps_start,
                 format_action_prob(action_probs),
                 metric
             ), end=" ")
+        print()
 
     interruption = False
     
     writer.add_scalar("Reward", score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
+    writer.add_scalar("Num_of_conflicts", num_of_conflict, episode_idx)
+    writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
     writer.flush()
    
     
@@ -629,50 +620,62 @@ env_renderer.reset()
 frame_step = 0
 frames = []
 score = 0
+num_of_tests = 10
 
-for step in range(max_steps):
-    for a in range(env.get_num_agents()):
-        update_values[a] = True
-        action = policy.act(agent_obs[a])
+for test_episode in range(num_of_tests + 1):
+    # Reset environment and get initial observations for all agents
+    env.reset()
+    # Reset the rendering system
+    env_renderer.reset()
+    
+    score = 0
+    
+    metric = 0
+    
+    for step in range(max_steps):
+        for a in range(env.get_num_agents()):
+            update_values[a] = True
+            action = policy.act(a, agent_obs[a])
 
-        action_count[action] += 1
-        actions_taken.append(action)
-        action_dict.update({a: action})
-        score += all_rewards[a]
+            action_count[action] += 1
+            actions_taken.append(action)
+            action_dict.update({a: action})
+            score += all_rewards[a]
+            
+        next_obs, all_rewards, done, info = env.step(action_dict)
+
+        frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+        frames.append(frame)
+        frame_step += 1
         
-    next_obs, all_rewards, done, info = env.step(action_dict)
+        if done['__all__']:
+            break
 
-    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
-    frames.append(frame)
-    frame_step += 1
-    
-    if done['__all__']:
-        break
+        if check_conflicts(env):
+            break
+        
+    # metric near to 1 is great result
+    for agent_handle in env.get_agent_handles():
+        metric += env.calculate_metric_single_agent(timetable, agent_handle)
+        
 
-    if check_conflicts(env):
-        break
-    
-# metric most possible near to 0
-metric = calculate_metric(env, timetable)
+    tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
-tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
-
-print()
-print(  'Test 0 concluded:'
-        '\t 🏆 Score: {:.3f}'
-        '\t Agent completed {}'
-        '\t Metric {}'.format(
-            score,
-            tasks_finished,
-            metric
-        ), end=" ")
-
+    print()
+    print(  'Test 0 concluded:'
+            '\t 🏆 Score: {:.3f}'
+            '\t Agent completed {}'
+            '\t Metric {}'.format(
+                score,
+                tasks_finished,
+                metric
+            ), end=" ")
 
 animation = display_episode(frames)
 plt.show()
 
 
-#################
+"""#################
 ##### TEST 1 ####
 #################
 # Reset environment and get initial observations for all agents
@@ -715,9 +718,9 @@ for step in range(max_steps):
     if done['__all__']:
         break
     #break if the first agent has done
-    if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-        ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-        ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+    if ((training_flag == 'training0') and (done[0] == True)) or \
+        ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+        ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
         break
 
     if check_conflicts(env):
@@ -789,9 +792,9 @@ if example_training == 'training0':
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
 
     # metric most possible near to 0
@@ -857,9 +860,9 @@ if example_training == 'training0':
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
 
     # metric most possible near to 0
@@ -924,9 +927,9 @@ if example_training == 'training0':
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
 
 
@@ -994,9 +997,9 @@ if example_training == 'training0':
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
 
     # metric most possible near to 0
@@ -1063,9 +1066,9 @@ if example_training == 'training0':
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (env.dones[0] == True)) or \
-            ((training_flag == 'training1') and (env.dones[0] == True) and (env.dones[1] == True)) or \
-            ((training_flag == 'training1.1') and (env.dones[0] == True) and (env.dones[1] == True)):
+        if ((training_flag == 'training0') and (done[0] == True)) or \
+            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
+            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
 
     # metric most possible near to 0
@@ -1083,4 +1086,4 @@ if example_training == 'training0':
             ), end=" ")
 
     animation = display_episode(frames)
-    plt.show()
+    plt.show()"""

@@ -69,7 +69,7 @@ def check_train_in_station(timetable):
 	    for k in range(len(timetable[i][0])): # for all the stations
 	        if timetable[i][0][k] not in station_positions:
 	            station_positions.append(timetable[i][0][k])
-	            different_stations += 1
+             	different_stations += 1
 
 	# Indexes contein the indexes of the station like this
 	# 0 for the first station in station position 

@@ -101,9 +101,13 @@ def divide_trains_in_station_rails(timetable, railway_topology):
                             threshold_time = calculate_time_in_station(timetable,m,n,k,l)
                             # if the time at which they have to reach the station is similar (calculated the time needed in the stations for the trains)
                             if time_train_a - time_train_b < threshold_time and time_train_a - time_train_b > -threshold_time:
-                                if railway_topology.grid[(station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])] != 0:
-                                    # I change the goal of the convoy that first reach the station
-                                    timetable[n][3][l] = (station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])
+                                if railway_topology.grid[(station_positions[indexes[n][l]])] == 32800:
+                                    if railway_topology.grid[(station_positions[indexes[n][l]][0], station_positions[indexes[n][l]][1] - 1)] != 0:
+                                        timetable[n][3][l] = (station_positions[indexes[n][l]][0], station_positions[indexes[n][l]][1] - 1)
+                                if railway_topology.grid[(station_positions[indexes[n][l]])] == 1025:
+                                    if railway_topology.grid[(station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])] != 0:
+                                        # I change the goal of the convoy that first reach the station
+                                        timetable[n][3][l] = (station_positions[indexes[n][l]][0] - 1, station_positions[indexes[n][l]][1])
     for i in range(len(timetable)):
         for j in range(len(timetable[i][0])):
             if timetable[i][3][j] == 0:
