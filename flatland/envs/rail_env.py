@@ -446,6 +446,7 @@ class RailEnv(Environment):
   
         for next_stations in range(1,num_of_stations - station_index):
             temporary_stations.append(timetable[i_agent][0][next_stations + station_index])
+            
         if self.get_num_agents() > 1:
             self.next_station_to_reach[i_agent] = temporary_stations
         else:

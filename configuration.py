@@ -376,12 +376,12 @@ if example_training == 'training0.2':
 	train_run_1 = Train_run(linea_genova_levante, starting_time = 5, from_depot = True, to_depot= True, inverse_train_direction= True)
 
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
-	#R103_convoy = Convoy(Type_of_convoy.INTERCITY)
+	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
 
-	convoys = [R102_convoy]#, R103_convoy]
+	convoys = [R102_convoy, R103_convoy]
 
 	R102_convoy.add_train_run(train_run_0)
-	#R103_convoy.add_train_run(train_run_1)
+	R103_convoy.add_train_run(train_run_1)
 
 	timetable_example = calculate_timetable(convoys, rail)
 
