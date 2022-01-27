@@ -98,11 +98,11 @@ def format_action_prob(action_probs):
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 7500
+n_episodes = 5000
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.9997
-max_steps = 250     # 1440 one day
+eps_decay = 0.9995
+max_steps = 150     # 1440 one day
 checkpoint_interval = 100
  # Unique ID for this training
 now = datetime.now()
