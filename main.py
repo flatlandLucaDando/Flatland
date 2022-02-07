@@ -5,8 +5,7 @@ from argparse import Namespace
 from pprint import pprint
 from random import *
 from datetime import datetime
-
-import torch
+from statistics import mean
 
 from torch.utils.tensorboard import SummaryWriter
 # In Flatland you can use custom observation builders and predicitors
@@ -97,16 +96,114 @@ def format_action_prob(action_probs):
     return buffer
 
 
+def evaluate_policy():
+    #####################
+    ## Evaluate policy ##
+    #####################
+    # Reset environment and get initial observations for all agents
+    env.reset()
+    # Reset the rendering system
+    env_renderer.reset()
+
+    frame_step = 0
+    frames = []
+    score = 0
+    num_of_tests = 1
+
+    total_steps = 0
+
+    # Flag to choose if save video of tests or not
+    if episode_idx % 1000 == 0:
+        video_save = True
+    else:
+        video_save = False
+
+    test_id = now.strftime('%y-%m-%d - %H,%M')
+    
+    os.makedirs("output/training_n_" + test_id, exist_ok=True)
+    if video_save:
+        os.makedirs("output/training_n_" + test_id + "/frames", exist_ok=True)
+        os.makedirs("output/training_n_" + test_id + "/frames/_episode_n_" + str(episode_idx), exist_ok=True)
+
+    test_directory_name = "output/training_n_" + test_id + "/frames/_episode_n_" + str(episode_idx) + "/"
+
+    for test_episode in range(num_of_tests):
+        
+        # Reset environment and get initial observations for all agents
+        env.reset()
+        # Reset the rendering system
+        env_renderer.reset()
+        
+        score = 0
+        
+        metric = 0
+        
+        for step in range(max_steps):
+            
+            if video_save:
+                # Check if this work with multiple tests in the same for loop
+                env_renderer.gl.save_image(test_directory_name + "flatland_episode_and_step_{:04d}.bmp".format(total_steps))
+            
+            for a in range(env.get_num_agents()):
+                update_values[a] = True
+                action = policy.act(a, agent_obs[a], eps = 0)
+
+                action_count[action] += 1
+                actions_taken.append(action)
+                action_dict.update({a: action})
+                
+            next_obs, all_rewards, done, info = env.step(action_dict)
+            
+            for a in range(env.get_num_agents()):
+                score += all_rewards[a]
+                if env.agents[a].state == TrainState.DONE:
+                    done[a] = True
+            
+            env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+            
+            total_steps += 1
+            
+            if done['__all__']:
+                break
+            
+        # metric near to 1 is great result
+        for agent_handle in env.get_agent_handles():
+            metric += env.calculate_metric_single_agent(timetable, agent_handle)
+            
+        metric = metric/num_of_agents
+        
+        tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
+        
+        string_with_rewards = '\n \n Episode number ' + str(episode_idx) + ' evaluation concluded:' + '\n Score: ' + str(score) + \
+            '\n Agent completed: ' + str(tasks_finished) + '\n Metric: ' + str(metric)
+
+        print(string_with_rewards)
+        
+        # Save the results in a txt file
+        f = open("output/training_n_" + test_id + "/evaluation_policy.txt", "a+")
+        f.write(string_with_rewards)
+        f.close()
+    
 ###### TRAINING PARAMETERS #######
-n_episodes = 10000
+n_episodes = 5000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.99975
-max_steps = 150     # 1440 one day
+max_steps = 300           # 1440 one day
 checkpoint_interval = 100
+
+mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
+                       # this is important to discover if a plateau is present in the rewards distribution over the episodes
+tolerance_of_conflict = 0.35     # Threshold of maximum percentage of conflicts that we accept                       
+
+num_of_plateau = 0
+
+plateau_window = 50
+
  # Unique ID for this training
 now = datetime.now()
 training_id = now.strftime('%y%m%d%H%M%S')
+
 
 #########################################################
 # Parameters that should change the results:
@@ -363,8 +460,9 @@ frame_step = 0
 frames = []
 
 # Conflicts 
-num_of_conflict = 0
 avg_num_of_conflict = 0
+
+score_mean = [0] * 30
 
 os.makedirs("output/frames", exist_ok=True)
 
@@ -431,7 +529,6 @@ for episode_idx in range(n_episodes + 1):
         # If not interruption, the actions to do are stored in a matrix
         #       - each row of the matrix is a train
         #       - each column represent the action the train has to do at each time instant
-        
         for a in range(env.get_num_agents()):
             if env.agents[a].state == TrainState.MALFUNCTION:
                 interruption = True
@@ -523,12 +620,6 @@ for episode_idx in range(n_episodes + 1):
             ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
         
-        if check_conflicts(env):
-            
-            num_of_conflict += 1
-            
-            break
-        
     print()
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
@@ -537,6 +628,20 @@ for episode_idx in range(n_episodes + 1):
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
     metric = metric/len(env.get_agent_handles())
+    
+    
+    if episode_idx <= plateau_window - 1:
+        score_mean[episode_idx] = score
+    else:
+        score_mean = score_mean[1:plateau_window] + [score]
+        
+    if episode_idx > plateau_window - 1:
+            previous_mean = mean(score_mean[0:int(plateau_window/2)])
+            current_mean = mean(score_mean[int(plateau_window/2):plateau_window])
+            if current_mean >= previous_mean - mean_tolerance and current_mean <= previous_mean + mean_tolerance:
+                num_of_plateau += 1
+                if avg_num_of_conflict >= tolerance_of_conflict:
+                    env.increase_conflict_penalty = True
     
     if multi_agent:
         # Epsilon decay
@@ -551,7 +656,7 @@ for episode_idx in range(n_episodes + 1):
         action_probs = action_count / np.sum(action_count)
         action_count = [1] * action_size
         
-        avg_num_of_conflict = num_of_conflict / (episode_idx + 1)
+        avg_num_of_conflict = env.num_of_conflict / (episode_idx + 1)
         
         smoothing = 0.99
         smoothed_normalized_score = smoothed_normalized_score * smoothing + normalized_score * (1.0 - smoothing)
@@ -578,17 +683,19 @@ for episode_idx in range(n_episodes + 1):
             ' Avg: {:.3f}'
             '\t 🎲 Epsilon: {:.3f} '
             '\t 🔀 Action Probs: {}'
-            '\t Metric: {}'.format(
+            '\t Metric: {}'
+            '\t Num of Plateau: {}'.format(
                 episode_idx,
                 normalized_score,
                 smoothed_normalized_score,
                 100 * completion,
                 100 * smoothed_completion,
-                num_of_conflict,
+                env.num_of_conflict,
                 avg_num_of_conflict,
                 eps_start,
                 format_action_prob(action_probs),
-                metric
+                metric,
+                num_of_plateau
             ), end=" ")
         print()
 
@@ -596,9 +703,13 @@ for episode_idx in range(n_episodes + 1):
     
     writer.add_scalar("Reward", score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
-    writer.add_scalar("Num_of_conflicts", num_of_conflict, episode_idx)
+    writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
     writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
+    writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
     writer.flush()
+     
+    if episode_idx % 50 == 0 and episode_idx != 0:
+        evaluate_policy()
    
     
 #animation = display_episode(frames)
@@ -620,9 +731,22 @@ env_renderer.reset()
 frame_step = 0
 frames = []
 score = 0
-num_of_tests = 10
+num_of_tests = 1
+
+total_steps = 0
+
+# Flag to choose if save video of tests or not
+video_save = True
+
+test_id = now.strftime('%y-%m-%d - %H,%M')
+
+if video_save:
+    os.makedirs("output/frames/" + test_id, exist_ok=True)
+
+test_directory_name = "output/frames/" + test_id + "/"
 
 for test_episode in range(num_of_tests + 1):
+    
     # Reset environment and get initial observations for all agents
     env.reset()
     # Reset the rendering system
@@ -633,9 +757,14 @@ for test_episode in range(num_of_tests + 1):
     metric = 0
     
     for step in range(max_steps):
+        
+        if video_save:
+            # Check if this work with multiple tests in the same for loop
+            env_renderer.gl.save_image(test_directory_name + "flatland_episode_and_step_{:04d}.bmp".format(total_steps))
+        
         for a in range(env.get_num_agents()):
             update_values[a] = True
-            action = policy.act(a, agent_obs[a])
+            action = policy.act(a, agent_obs[a], eps = 0)
 
             action_count[action] += 1
             actions_taken.append(action)
@@ -648,21 +777,21 @@ for test_episode in range(num_of_tests + 1):
         frames.append(frame)
         frame_step += 1
         
+        total_steps += 1
+        
         if done['__all__']:
-            break
-
-        if check_conflicts(env):
             break
         
     # metric near to 1 is great result
     for agent_handle in env.get_agent_handles():
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
         
-
+    metric = metric/num_of_agents
+    
     tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
     print()
-    print(  'Test 0 concluded:'
+    print(  'Test ' + str(test_episode) + ' concluded:'
             '\t 🏆 Score: {:.3f}'
             '\t Agent completed {}'
             '\t Metric {}'.format(
