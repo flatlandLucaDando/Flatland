@@ -29,7 +29,7 @@ class RenderTool(object):
     """
     def __init__(self, env, gl="PGL", jupyter=False,
                  agent_render_variant=AgentRenderVariant.ONE_STEP_BEHIND,
-                 show_debug=False, clear_debug_text=True, screen_width=800, screen_height=600,
+                 show_debug=False, clear_debug_text=True, screen_width=1080, screen_height=720,
                  host="localhost", port=None):
 
         self.env = env

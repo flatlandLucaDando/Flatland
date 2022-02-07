@@ -57,6 +57,9 @@ class ReplayBuffer:
         return len(self.memory)
 
     def __v_stack_impr(self, states):
-        sub_dim = len(states[0][0]) if isinstance(states[0], Iterable) else 1
-        np_states = np.reshape(np.array(states), (len(states), sub_dim))
+        for i in range(len(states)):
+            if states[i][0] == None:
+                continue 
+            sub_dim = len(states[i][0]) if isinstance(states[0], Iterable) else 1
+        np_states = np.reshape(np.array(states[0][0]), (len(states), sub_dim))
         return np_states

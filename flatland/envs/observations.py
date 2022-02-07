@@ -48,13 +48,7 @@ NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '
                                         'station_index_other_agent_0 '
                                         'time_at_which_reach_station_other_agent_0 '
                                         'childs')
-"""'station_positions_other_agent_0 '
-                                        'station_index_other_agent_0 '
-                                        'time_at_which_reach_station_other_agent_0 '
-                                        'station_positions_other_agent_1 '
-                                        'station_index_other_agent_1 '
-                                        'time_at_which_reach_station_other_agent_1 '
-                                        'childs')"""
+
 
 class TreeObsForRailEnv(ObservationBuilder):
     """
@@ -954,33 +948,32 @@ class TreeTimetableObservation(ObservationBuilder):
             # There is a station in the timetable in the next branch for the other agents?
             if self.env.get_num_agents() > 1:
                 for i_agent in range(self.env.get_num_agents()):
-                    if i_agent != handle:
-                        for i_station in range(len(self.env.next_station_to_reach[i_agent])):
-                            if position in self.env.next_station_to_reach[i_agent][i_station].rails:  
-                                station = self.env.next_station_to_reach[i_agent][i_station] 
-                                array_with_all_the_scheduled_stations = timetable[i_agent][0]
-                                 
-                                station_timetable_index_other_agent_0 = (i_station * 0.1) + 0.1    # save the index of the station
+                    if i_agent != handle and self.env.next_station_to_reach[i_agent] != []:
+                        if position in self.env.next_station_to_reach[i_agent][0].rails:
+                            station = self.env.next_station_to_reach[i_agent][0] 
+                            array_with_all_the_scheduled_stations = timetable[i_agent][0]
                                 
-                                index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
-                                
-                                time_station_other_agent_0 = timetable[i_agent][1][index_of_my_station]     # save the time at which i have to reach it
-                                
-                                # Calculate the min dist from the other agent to the station
-                                rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
-                                                                          self.env.number_of_agents, self.env.num_resets, 
-                                                                          self.env.np_random)
-                                agent_position = self.env.agents[i_agent].position
-                                min_dist = np.inf
-                                dist = np.inf
-                                for i_rail in range(len(self.env.next_station_to_reach[i_agent][i_station].rails)):
-                                    current_rail = self.env.next_station_to_reach[i_agent][i_station].rails[i_rail]
-                                    if agent_position != None:
-                                        dist = len(a_star(grid_map = rail, start = agent_position, end = current_rail, respect_rail_directions= False))
-                                    if dist < min_dist and dist != 0:
-                                        min_dist = dist
-                                
-                                position_of_stations_other_agent_0 = min_dist                      # save the distance from it
+                            station_timetable_index_other_agent_0 = 0.1    # save the index of the station
+                            
+                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            
+                            time_station_other_agent_0 = timetable[i_agent][1][index_of_my_station]     # save the time at which i have to reach it
+                            
+                            # Calculate the min dist from the other agent to the station
+                            rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
+                                                                        self.env.number_of_agents, self.env.num_resets, 
+                                                                        self.env.np_random)
+                            agent_position = self.env.agents[i_agent].position
+                            min_dist = np.inf
+                            dist = np.inf
+                            for i_rail in range(len(self.env.next_station_to_reach[i_agent][0].rails)):
+                                current_rail = self.env.next_station_to_reach[i_agent][0].rails[i_rail]
+                                if agent_position != None:
+                                    dist = len(a_star(grid_map = rail, start = agent_position, end = current_rail, respect_rail_directions= False))
+                                if dist < min_dist and dist != 0:
+                                    min_dist = dist
+                            
+                            position_of_stations_other_agent_0 = min_dist                       # save the distance from it
                                 
             
             # #############################

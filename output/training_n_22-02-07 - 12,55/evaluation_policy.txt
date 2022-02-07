@@ -1,0 +1,85 @@
+
+ Episode number 50 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 100 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 150 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 200 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 250 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 300 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 350 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 400 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 450 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 500 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 550 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 600 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 650 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 700 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 750 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 800 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 850 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 900 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 950 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 1000 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0
+ Episode number 1050 evaluation concluded:
+ Score: -120.00000000000004
+ Agent completed: 0
+ Metric: 0.0

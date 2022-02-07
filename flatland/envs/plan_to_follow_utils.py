@@ -148,6 +148,7 @@ def action_to_do(timetable, railway_topology):
         actions_single_train = []
         # I need the direction of the last run for the reverse action
         direction_last_run = 0
+        direction = 0
         for station in range (num_of_stations - 1):
             # Each train occupy a row in the action_to_do matrix 
             actions_single_train_run = []
