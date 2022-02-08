@@ -185,10 +185,10 @@ def evaluate_policy():
         f.close()
     
 ###### TRAINING PARAMETERS #######
-n_episodes = 5000
+n_episodes = 7500
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.99975
+eps_decay = 0.9999
 max_steps = 300           # 1440 one day
 checkpoint_interval = 100
 
@@ -198,7 +198,7 @@ tolerance_of_conflict = 0.35     # Threshold of maximum percentage of conflicts 
 
 num_of_plateau = 0
 
-plateau_window = 50
+plateau_window = 30
 
  # Unique ID for this training
 now = datetime.now()
@@ -462,7 +462,7 @@ frames = []
 # Conflicts 
 avg_num_of_conflict = 0
 
-score_mean = [0] * 30
+score_mean = [0] * plateau_window
 
 os.makedirs("output/frames", exist_ok=True)
 

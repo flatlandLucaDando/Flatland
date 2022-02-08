@@ -754,18 +754,22 @@ if example_training == 'training_3':
 	train_run_1 = Train_run(linea_centro, starting_time = 3, from_depot = True, to_depot= True)
 	# Train run for the third convoy
 	train_run_2 = Train_run(linea_sud, starting_time = 10, from_depot = True, to_depot= True, inverse_train_direction = True)
-
+	# Train run for the third convoy
+	train_run_3 = Train_run(linea_centro, starting_time = 25, from_depot = True, to_depot= True, inverse_train_direction = True)
+ 
 	# Convoy definition
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
 	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
 	R104_convoy = Convoy(Type_of_convoy.INTERCITY)
+	R105_convoy = Convoy(Type_of_convoy.INTERCITY)
 
-	convoys = [R102_convoy, R103_convoy, R104_convoy]
+	convoys = [R102_convoy, R103_convoy, R104_convoy, R105_convoy]
 
 	# Adding train runs
 	R102_convoy.add_train_run(train_run_0)
 	R103_convoy.add_train_run(train_run_1)
 	R104_convoy.add_train_run(train_run_2)
+	R105_convoy.add_train_run(train_run_3)
 
 	# Calculating timetable
 	timetable_example = calculate_timetable(convoys, rail)
