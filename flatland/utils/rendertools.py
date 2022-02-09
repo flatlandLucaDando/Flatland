@@ -29,7 +29,7 @@ class RenderTool(object):
     """
     def __init__(self, env, gl="PGL", jupyter=False,
                  agent_render_variant=AgentRenderVariant.ONE_STEP_BEHIND,
-                 show_debug=False, clear_debug_text=True, screen_width=1080, screen_height=720,
+                 show_debug=False, clear_debug_text=True, screen_width=800, screen_height=600,
                  host="localhost", port=None):
 
         self.env = env
@@ -205,8 +205,9 @@ class RenderLocal(RenderBase):
         for agent_idx, agent in enumerate(self.env.agents):
             if agent is None:
                 continue
+            target = self.env.next_station_to_reach[agent_idx]
             color = color_map(agent_idx)
-            self.plot_single_agent(agent.position, agent.direction, color, target=agent.target if targets else None,
+            self.plot_single_agent(agent.position, agent.direction, color, target=target if targets else None,
                                    static=True, selected=agent_idx == selected_agent)
 
         for agent_idx, agent in enumerate(self.env.agents):
@@ -249,6 +250,39 @@ class RenderLocal(RenderBase):
             return transition_grid
 
     def plot_single_agent(self, position_row_col, direction, color="r", target=None, static=False, selected=False):
+        """
+        Plot a simple agent.
+        Assumes a working graphics layer context (cf a MPL figure).
+        """
+        if position_row_col is None:
+            return
+
+        rt = self.__class__
+
+        direction_row_col = rt.transitions_row_col[direction]  # agent direction in RC
+        direction_xy = np.matmul(direction_row_col, rt.row_col_to_xy)  # agent direction in xy
+
+        xyPos = np.matmul(position_row_col - direction_row_col / 2, rt.row_col_to_xy) + rt.x_y_half
+
+        if static:
+            color = self.gl.adapt_color(color, lighten=True)
+
+        color = color
+
+        self.gl.scatter(*xyPos, color=color, layer=1, marker="o", s=100)  # agent location
+        xy_dir_line = array([xyPos, xyPos + direction_xy / 2]).T  # line for agent orient.
+        self.gl.plot(*xy_dir_line, color=color, layer=1, lw=5, ms=0, alpha=0.6)
+        if selected:
+            self._draw_square(xyPos, 1, color)
+
+        if target is not None:
+            for i in range(len(target)):
+                target_row_col = array(target[i])
+                target_xy = np.matmul(target_row_col, rt.row_col_to_xy) + rt.x_y_half
+                self._draw_square(target_xy, 1 / 3, color, layer=1)    # Check what doeas the 1/3
+     
+            
+    def plot_single_agent_old(self, position_row_col, direction, color="r", target=None, static=False, selected=False):
         """
         Plot a simple agent.
         Assumes a working graphics layer context (cf a MPL figure).
@@ -642,8 +676,14 @@ class RenderLocal(RenderBase):
             for agent_idx, agent in enumerate(self.env.agents):
                 if agent is None:
                     continue
-                targets[tuple(agent.target)] = agent_idx
-                selected[tuple(agent.target)] = (agent_idx == selected_agent)
+                # HERE I MADE A MODIFICATION
+                target_array = []
+                for i in range(len(self.env.next_station_to_reach[agent_idx])):
+                    target = self.env.next_station_to_reach[agent_idx][i].position
+                    targets[tuple(target)] = agent_idx
+                #targets[tuple(agent.target)] = agent_idx
+                    selected[tuple(target)] = (agent_idx == selected_agent)
+                #selected[tuple(agent.target)] = agent_idx
 
             # Draw each cell independently
             for r in range(env.height):

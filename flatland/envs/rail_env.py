@@ -46,6 +46,8 @@ skip_penality = 0                 # penalty for skipping a station
 conflict_penalty = -1             # penalty when two agents have a conflict (deadlock)
 target_not_reached_penalty = 0  # penalty for not reaching the final target (depot)
 default_skip_penalty = 2000
+not_spawning_penalty = -200
+
 cancellation_factor = 1
 cancellation_time_buffer = 0
 
@@ -595,7 +597,7 @@ class RailEnv(Environment):
         
         if st_signals.movement_conflict:
             if self.increase_conflict_penalty:
-                self.conflict_penalty += -5
+                self.conflict_penalty += -1
                 self.rewards_dict[agent.handle] += self.conflict_penalty 
                 self.increase_conflict_penalty = False
             else:
@@ -815,6 +817,11 @@ class RailEnv(Environment):
             reward += reverse_penality
         if not moving or state == TrainState.STOPPED:
             reward += stop_penality"""
+        
+        # If an agent decided not to spawn after 10 minutes with respect to the scheduled starting time we punish it
+        if self._elapsed_steps > agent.earliest_departure + 10:
+            if agent.position == None:
+                reward += not_spawning_penalty
 
         self.rewards_dict[i_agent] += reward
         

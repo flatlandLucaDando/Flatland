@@ -188,7 +188,7 @@ def evaluate_policy():
 n_episodes = 7500
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.9999
+eps_decay = 0.999
 max_steps = 300           # 1440 one day
 checkpoint_interval = 100
 
@@ -198,7 +198,7 @@ tolerance_of_conflict = 0.35     # Threshold of maximum percentage of conflicts 
 
 num_of_plateau = 0
 
-plateau_window = 30
+plateau_window = 60
 
  # Unique ID for this training
 now = datetime.now()
@@ -231,6 +231,8 @@ reinforcemente_learning = True
 debug = False
 # flag to select the tree observer
 tree_observer = True
+# flag to decide if save or not replay buffer
+save_replay_buffer = True
 
 # The specs for the custom railway generation are taken from structures.py file
 specs = railway_example
@@ -470,15 +472,21 @@ for episode_idx in range(n_episodes + 1):
     
     deterministic_interruption_activation = False
 
-    step_timer = Timer()
     reset_timer = Timer()
-    learn_timer = Timer()
-    preproc_timer = Timer()
-    inference_timer = Timer()
+    policy_start_episode_timer = Timer()
+    policy_start_step_timer = Timer()
+    policy_act_timer = Timer()
+    env_step_timer = Timer()
+    policy_shape_reward_timer = Timer()
+    policy_step_timer = Timer()
+    policy_end_step_timer = Timer()
+    policy_end_episode_timer = Timer()
+    total_episode_timer = Timer()
+    
+    total_episode_timer.start()
 
     # Reset environment
     reset_timer.start()
-
     # Reset environment and get initial observations for all agents
     obs, info = env.reset(regenerate_rail=True, regenerate_schedule=True)    
     reset_timer.end()
@@ -486,6 +494,8 @@ for episode_idx in range(n_episodes + 1):
         tmp_agent = env.agents[idx]
         tmp_agent.speed_counter.speed = 1 / (idx + 1)  # TODO rigestisci le velocità iniziali
     env_renderer.reset()
+    policy.reset(env)
+    reset_timer.end()
 
     if train_params.render:
         env_renderer.set_new_rail()
@@ -508,12 +518,14 @@ for episode_idx in range(n_episodes + 1):
             agent_obs[agent] = obs[agent]
             agent_prev_obs[agent] = agent_obs[agent].copy()
 
+    policy_start_episode_timer.start()
+    policy.start_episode(train=True)
+    policy_start_episode_timer.end()
+    
     # Run episode (one day long, 1 step is 1 minute) 1440
-    for step in range(max_steps):
+    for step in range(max_steps - 1):
         if video_save:
             env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
-
-        inference_timer.start() 
 
     # Here define the actions to do
         # Broken agents
@@ -525,6 +537,15 @@ for episode_idx in range(n_episodes + 1):
         if training_flag == 'training1.1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
 
+        # policy.start_step ---------------------------------------------------------------------------------------
+        policy_start_step_timer.start()
+        policy.start_step(train=True)
+        policy_start_step_timer.end()
+        
+        # policy.act ----------------------------------------------------------------------------------------------
+        policy_act_timer.start()
+        action_dict = {}
+        
         # Chose an action for each agent in the environment
         # If not interruption, the actions to do are stored in a matrix
         #       - each row of the matrix is a train
@@ -545,7 +566,6 @@ for episode_idx in range(n_episodes + 1):
                         if info['action_required'][a]:
                             update_values[a] = True
                             action = policy.act(a, agent_obs[a], eps=eps_start)
-
                             action_count[action] += 1
                             actions_taken.append(action)
                         else:
@@ -561,22 +581,38 @@ for episode_idx in range(n_episodes + 1):
                     action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
                         RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
 
-                action_dict.update({a: action})
+            action_dict.update({a: action})
 
-
-        inference_timer.end()
+        policy_act_timer.end()
+        
+        # policy.end_step -----------------------------------------------------------------------------------------
+        policy_end_step_timer.start()
+        policy.end_step(train=True)
+        policy_end_step_timer.end()
 
         # Environment step which returns the observations for all agents, their corresponding
         # reward and whether their are done
-        # Environment step
-        step_timer.start()
+        # Environment step ----------------------------------------------------------------------------------------
+        env_step_timer.start()
         next_obs, all_rewards, done, info = env.step(action_dict)
         for agent_handle in env.get_agent_handles():
                 done[agent_handle] = (env.agents[agent_handle].state == TrainState.DONE)
-        step_timer.end()
+        env_step_timer.end()
         
+        # policy.shape_reward -------------------------------------------------------------------------------------
+        policy_shape_reward_timer.start()
         deadlocked_agents, all_rewards, = find_and_punish_deadlock(env, all_rewards, 0)
 
+        # The might requires a policy based transformation
+        for agent_handle in env.get_agent_handles():
+            all_rewards[agent_handle] = policy.shape_reward(agent_handle,
+                                                            action_dict[agent_handle],
+                                                            agent_obs[agent_handle],
+                                                            all_rewards[agent_handle],
+                                                            done[agent_handle],
+                                                            deadlocked_agents[agent_handle])
+        policy_shape_reward_timer.end()
+        
         # Render an episode at some interval
         #frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
         #frames.append(frame)
@@ -588,23 +624,24 @@ for episode_idx in range(n_episodes + 1):
         if multi_agent:
             for agent in env.get_agent_handles():
                 if update_values[agent] or done['__all__']:
-                    # Only learn from timesteps where somethings happened
-                    learn_timer.start()
-                    policy.step(agent, agent_prev_obs[agent], agent_prev_action[agent], all_rewards[agent], agent_obs[agent], done[agent])
-                    learn_timer.end()
-
+                    # Only learn from timesteps where somethings happened 
+                    policy_step_timer.start()
+                    policy.step(agent_handle,
+                            agent_prev_obs[agent_handle],
+                            agent_prev_action[agent_handle],
+                            all_rewards[agent_handle],
+                            agent_obs[agent_handle],
+                            done[agent_handle] or (deadlocked_agents[agent_handle] > 0))
+                    policy_step_timer.end()
+                    
                     agent_prev_obs[agent] = agent_obs[agent].copy()
                     agent_prev_action[agent] = action_dict[agent]
-
+                score += all_rewards[agent]
                 # Preprocess the new observations
-                preproc_timer.start()
                 if tree_observer:
                     agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
                 else:
                     agent_obs[agent] = normalize_global_observation(obs[agent])
-                preproc_timer.end()
-
-                score += all_rewards[agent]
 
             nb_steps = step
         else:
@@ -619,6 +656,16 @@ for episode_idx in range(n_episodes + 1):
             ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
             ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
             break
+       
+    # policy.end_episode
+    policy_end_episode_timer.start()
+    policy.end_episode(train=True)
+    policy_end_episode_timer.end()
+    
+    # Epsilon decay
+    eps_start = max(eps_end, eps_decay * eps_start)
+    
+    total_episode_timer.end()
         
     print()
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
@@ -664,11 +711,14 @@ for episode_idx in range(n_episodes + 1):
 
         # Print logs
         if episode_idx % checkpoint_interval == 0:
-            '''
-            torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
+            os.makedirs("checkpoints", exist_ok=True)
+            os.makedirs("checkpoints/training_n_" + training_id, exist_ok=True)
+            policy.save('checkpoints/training_n_' + training_id + '/' + str(episode_idx) + '.pth')
             if save_replay_buffer:
-                policy.save_replay_buffer('./replay_buffers/' + training_id + '-' + str(episode_idx) + '.pkl')
-            '''
+                os.makedirs("replay_buffers", exist_ok=True)
+                os.makedirs("replay_buffers/training_n_" + training_id, exist_ok=True)
+                policy.save_replay_buffer(
+                'replay_buffers/training_n_' + training_id + '/' + str(episode_idx) + '.pkl')
 
             if train_params.render:
                 env_renderer.close_window()
