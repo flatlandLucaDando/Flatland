@@ -391,7 +391,7 @@ def calculate_timetable(convoys, railway_topology):
     timetable_time_example = []  # Partial timetable with the time at which reach the stations
     single_stations_timetable = []  # position and time of a single train run
     single_time_timetable = []
-
+    rails_single_timetable = []
 
     for i in range(len(timetable)):  # for all the agents
         for j in range(len(timetable[i])):    # for all the columns of the timetable
@@ -407,7 +407,10 @@ def calculate_timetable(convoys, railway_topology):
         timetable_single_convoy.append(single_stations_timetable)
         timetable_single_convoy.append(single_time_timetable)
         timetable_single_convoy.append(convoys[i])
-        timetable_single_convoy.append([0]*len(single_stations_timetable))   # Array for the rails of the stations in which the train have to stop
+        # Adding the station position to the timetable
+        for i_station in range(len(single_stations_timetable)):
+            rails_single_timetable.append(single_stations_timetable[i_station].position)
+        timetable_single_convoy.append(rails_single_timetable)   # Array for the rails of the stations in which the train have to stop
         # Final timetable
         final_timetable.append(timetable_single_convoy)
         # Restart the partial results
@@ -416,6 +419,7 @@ def calculate_timetable(convoys, railway_topology):
         single_time_timetable = []
         timetable_time_example = []
         timetable_single_convoy = []
+        rails_single_timetable = []
 
     return final_timetable
 

@@ -214,7 +214,7 @@ training_id = now.strftime('%y%m%d%H%M%S')
 # penalty given in the function find_and_punish_deadlock
 #########################################################
 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -268,7 +268,7 @@ rail_custom = rail_custom_generator(specs, stations_position, timetable)
 
 transition_map_example, agent_hints = rail_custom(widht, height, num_of_agents)
 
-divide_trains_in_station_rails(timetable, transition_map_example)
+# divide_trains_in_station_rails(timetable, transition_map_example)  # WE HAVE A DOUBLE RAIL EVERYWHERE. WE DOESN'T CONSIDER CONFLICT. NON CI IMPORTA PIÙ
 
 control_timetable(timetable,transition_map_example)
 
@@ -462,7 +462,7 @@ frame_step = 0
 frames = []
 
 # Conflicts 
-avg_num_of_conflict = 0
+#avg_num_of_conflict = 0
 
 score_mean = [0] * plateau_window
 
@@ -686,9 +686,9 @@ for episode_idx in range(n_episodes + 1):
             previous_mean = mean(score_mean[0:int(plateau_window/2)])
             current_mean = mean(score_mean[int(plateau_window/2):plateau_window])
             if current_mean >= previous_mean - mean_tolerance and current_mean <= previous_mean + mean_tolerance:
-                num_of_plateau += 1
-                if avg_num_of_conflict >= tolerance_of_conflict:
-                    env.increase_conflict_penalty = True
+                num_of_plateau += 1  
+                """if avg_num_of_conflict >= tolerance_of_conflict:
+                    env.increase_conflict_penalty = True"""
     
     if multi_agent:
         # Epsilon decay
@@ -703,7 +703,7 @@ for episode_idx in range(n_episodes + 1):
         action_probs = action_count / np.sum(action_count)
         action_count = [1] * action_size
         
-        avg_num_of_conflict = env.num_of_conflict / (episode_idx + 1)
+        #avg_num_of_conflict = env.num_of_conflict / (episode_idx + 1)
         
         smoothing = 0.99
         smoothed_normalized_score = smoothed_normalized_score * smoothing + normalized_score * (1.0 - smoothing)
@@ -729,8 +729,8 @@ for episode_idx in range(n_episodes + 1):
             ' Avg: {:.3f}'
             '\t 💯 Done: {}%'
             ' Avg: {:.3f}%'
-            '\t Num of conflicts: {}'
-            ' Avg: {:.3f}'
+            #'\t Num of conflicts: {}'
+            #' Avg: {:.3f}'
             '\t 🎲 Epsilon: {:.3f} '
             '\t 🔀 Action Probs: {}'
             '\t Metric: {}'
@@ -740,8 +740,8 @@ for episode_idx in range(n_episodes + 1):
                 smoothed_normalized_score,
                 100 * completion,
                 100 * smoothed_completion,
-                env.num_of_conflict,
-                avg_num_of_conflict,
+                #env.num_of_conflict,
+                #avg_num_of_conflict,
                 eps_start,
                 format_action_prob(action_probs),
                 metric,
@@ -753,8 +753,8 @@ for episode_idx in range(n_episodes + 1):
     
     writer.add_scalar("Reward", score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
-    writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
-    writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
+    #writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
+    #writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
     writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
     writer.flush()
      

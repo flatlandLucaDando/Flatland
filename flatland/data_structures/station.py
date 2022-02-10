@@ -8,6 +8,8 @@ class Station:
 		# Name of the station (e.g. Milano, Torino etc etc)
 		self.name = name
 		# Position (y,x) of the station in the railway
+		if railway_topology.grid[position] == 0:
+			raise ValueError('The station position is out of rails')
 		self.position = position
 		# Capacity of the station, num of rails in the station
 		self.capacity = capacity
@@ -19,7 +21,8 @@ class Station:
 		# Stations have different importance depending on how much they are big and how much people they transport depending on the time
 		self.importance = importance
 		# Rails of the station
-		self.calculate_rails(railway_topology)
+		self.rails = position
+		# self.calculate_rails(railway_topology)
 		return
 
 

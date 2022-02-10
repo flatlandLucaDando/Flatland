@@ -219,7 +219,7 @@ class MotionCheck(object):
         # If it's been marked red or purple then it can't move
         if "color" in dAttr:
             sColor = dAttr["color"]
-            if sColor in [ "red", "purple" ]:
+            if sColor in [ "red"]:     # IMPORTANT, IF WE WANT TWO AGENTS IN SAME DIRECTION CAPABLE TO SURPASS WE NEED TO DEACTIVATE THE RED COLOUR
                 return False
 
         dSucc = self.G.succ[rcPos]

@@ -371,15 +371,27 @@ if example_training == 'training0.2':
 	# Train run for the first convoy
 	train_run_0 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True, to_depot= True)
 	# Train run for the second convoy
-	train_run_1 = Train_run(linea_genova_levante, starting_time = 5, from_depot = True, to_depot= True, inverse_train_direction= True)
+	train_run_1 = Train_run(linea_genova_levante, starting_time = 15, from_depot = True, to_depot= True)
+	# Train run for the first convoy
+	train_run_2 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True, to_depot= True, inverse_train_direction= True)
+	# Train run for the second convoy
+	train_run_3 = Train_run(linea_genova_levante, starting_time = 5, from_depot = True, to_depot= True, inverse_train_direction= True)
+	train_run_4 = Train_run(linea_genova_levante, starting_time = 5, from_depot = True, to_depot= True)
+ 
 
-	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
-	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
+	R102_convoy = Convoy(Type_of_convoy.REGIONAL)
+	R103_convoy = Convoy(Type_of_convoy.HIGH_VELOCITY)
+	R104_convoy = Convoy(Type_of_convoy.REGIONAL)
+	R105_convoy = Convoy(Type_of_convoy.HIGH_VELOCITY)
+	R106_convoy = Convoy(Type_of_convoy.REGIONAL)
 
-	convoys = [R102_convoy, R103_convoy]
+	convoys = [R102_convoy, R103_convoy, R104_convoy, R105_convoy, R106_convoy]
 
 	R102_convoy.add_train_run(train_run_0)
 	R103_convoy.add_train_run(train_run_1)
+	R104_convoy.add_train_run(train_run_2)
+	R105_convoy.add_train_run(train_run_3)
+	R106_convoy.add_train_run(train_run_4)
 
 	timetable_example = calculate_timetable(convoys, rail)
 
@@ -473,7 +485,7 @@ if example_training == 'training1':
 
 	train_run_0 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True)
 
-	train_run_1 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True, inverse_train_direction = True)
+	train_run_1 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True)
 
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
 	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
@@ -705,11 +717,11 @@ if example_training == 'training_3':
 	from examples.five_station_diamond import rail, railway_example, av_line
 
 	# Station definition
-	genova_station = Station('Genova', position = (6,2), capacity = 3, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
-	recco_station = Station('Recco', position = (2,18), capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
-	chiavari_station = Station('Chiavari', position = (6,14), capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
-	lavagna_station = Station('Lavagna', position= (6,27),capacity = 3, min_wait_time = [1, 1, 1], additional_wait_percent = 1, importance = 1, railway_topology = rail)
-	sestri_station = Station('Sestri', position= (9,17),capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent = 1, importance = 1, railway_topology = rail)
+	genova_station = Station('Genova', position = (4,2), capacity = 3, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+	recco_station = Station('Recco', position = (1,13), capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+	chiavari_station = Station('Chiavari', position = (4,12), capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+	lavagna_station = Station('Lavagna', position= (4,22),capacity = 3, min_wait_time = [1, 1, 1], additional_wait_percent = 1, importance = 1, railway_topology = rail)
+	sestri_station = Station('Sestri', position= (7,12),capacity = 2, min_wait_time = [1, 1, 1], additional_wait_percent = 1, importance = 1, railway_topology = rail)
 
 	# Connection definition
 	connection_genova_recco = Rail_connection(station_a = genova_station, 
@@ -753,9 +765,9 @@ if example_training == 'training_3':
 	# Train run for the second convoy
 	train_run_1 = Train_run(linea_centro, starting_time = 3, from_depot = True, to_depot= True)
 	# Train run for the third convoy
-	train_run_2 = Train_run(linea_sud, starting_time = 10, from_depot = True, to_depot= True, inverse_train_direction = True)
+	train_run_2 = Train_run(linea_sud, starting_time = 3, from_depot = True, to_depot= True, inverse_train_direction = True)
 	# Train run for the third convoy
-	train_run_3 = Train_run(linea_centro, starting_time = 25, from_depot = True, to_depot= True, inverse_train_direction = True)
+	train_run_3 = Train_run(linea_centro, starting_time = 15, from_depot = True, to_depot= True, inverse_train_direction = True)
  
 	# Convoy definition
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)

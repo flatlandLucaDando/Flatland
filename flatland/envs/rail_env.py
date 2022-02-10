@@ -422,7 +422,12 @@ class RailEnv(Environment):
     def check_station_from_rails(self, timetable, rail):
         for i in range(len(timetable)):
             for j in range(len(timetable[i][0])):
-                if rail in timetable[i][0][j].rails:
+                if type(timetable[i][0][j].rails) == tuple:  
+                    if rail == timetable[i][0][j].rails:
+                        station = timetable[i][0][j]
+                        return station
+                else:
+                    if rail in timetable[i][0][j].rails:
                         station = timetable[i][0][j]
                         return station
     
@@ -500,18 +505,36 @@ class RailEnv(Environment):
             for i_station in range(num_of_stations):
                 station_importance = timetable[i_agent][0][i_station].importance
                 for step in range(len(positions)):
-                    if positions[step][i_agent] in timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
-                        prev_station = positions[step][i_agent]
-                        # The last station of the run is more important
-                        if i_station == (len(timetable[i_agent][0]) - 1):
-                            if not array_of_passed_stations[i_station]:
-                                distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
-                                array_of_passed_stations[i_station] = True
-                        else:
-                            if not array_of_passed_stations[i_station]:
-                                distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2) * station_importance
-                                array_of_passed_stations[i_station] = True
-                        station_vector[i_station] = distance_delay
+                    # two different cases
+                    # multiple rails or single rail in station
+                    # SINGLE RAIL
+                    if type(timetable[i_agent][0][i_station].rails) == tuple:
+                        if positions[step][i_agent] == timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
+                            prev_station = positions[step][i_agent]
+                            # The last station of the run is more important
+                            if i_station == (len(timetable[i_agent][0]) - 1):
+                                if not array_of_passed_stations[i_station]:
+                                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
+                                    array_of_passed_stations[i_station] = True
+                            else:
+                                if not array_of_passed_stations[i_station]:
+                                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2) * station_importance
+                                    array_of_passed_stations[i_station] = True
+                            station_vector[i_station] = distance_delay
+                    # MULTIPLE RAILS
+                    else:
+                        if positions[step][i_agent] in timetable[i_agent][0][i_station].rails and positions[step][i_agent] != prev_station:
+                            prev_station = positions[step][i_agent]
+                            # The last station of the run is more important
+                            if i_station == (len(timetable[i_agent][0]) - 1):
+                                if not array_of_passed_stations[i_station]:
+                                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2)
+                                    array_of_passed_stations[i_station] = True
+                            else:
+                                if not array_of_passed_stations[i_station]:
+                                    distance_delay = ((step - timetable[i_agent][1][i_station])**2)**(1/2) * station_importance
+                                    array_of_passed_stations[i_station] = True
+                            station_vector[i_station] = distance_delay
             metric_result.append(station_vector)
         metric_sum = sum(sum(x) for x in metric_result)
         
@@ -588,8 +611,12 @@ class RailEnv(Environment):
       
         station_target = self.check_station_from_rails(timetable, agent.target)
         
-        if agent.position in station_target.rails:
-            st_signals.target_reached = True
+        if type(station_target.rails) == tuple:
+            if agent.position == station_target.rails:
+                st_signals.target_reached = True
+        else:
+            if agent.position in station_target.rails:
+                st_signals.target_reached = True
 
         # Movement conflict - Multiple trains trying to move into same cell
         # If speed counter is not in cell exit, the train can enter the cell
@@ -787,8 +814,8 @@ class RailEnv(Environment):
             
         # Stations have different rails that can be reached. So is important
         # to calculate distance from all the rails to discover the minimum and maximum once
-        for i_rail in range(len(self.next_station_to_reach[i_agent][0].rails)):
-            distance_from_target = len(a_star(self.rail, agent.position, self.next_station_to_reach[i_agent][0].rails[i_rail], respect_rail_directions = False))
+        for i_rail in range(len(self.next_station_to_reach[i_agent][0].rails)):  # this doesnt work for multiple station rails
+            distance_from_target = len(a_star(self.rail, agent.position, self.next_station_to_reach[i_agent][0].rails, respect_rail_directions = False))
             if distance_from_target < min_dist_from_target and distance_from_target != 0:
                 min_dist_from_target = distance_from_target
             if i_rail != 0:
@@ -806,8 +833,12 @@ class RailEnv(Environment):
             self.maximum_distance_from_target[i_agent] = min_dist_from_target
             
         # When I reach a station the maximum distance should be reset and then it's calculated a new maximum distance
-        if agent.position in self.next_station_to_reach[i_agent][0].rails:
-            self.maximum_distance_from_target[i_agent] = 1
+        if type(self.next_station_to_reach[i_agent][0].rails) == tuple:
+            if agent.position == self.next_station_to_reach[i_agent][0].rails:
+                self.maximum_distance_from_target[i_agent] = 1
+        else:
+            if agent.position in self.next_station_to_reach[i_agent][0].rails:
+                self.maximum_distance_from_target[i_agent] = 1
         
         # The penalty increases with respect to the distance to the next station scheduled
         reward = (min_dist_from_target / self.maximum_distance_from_target[i_agent]) * maximum_step_penality
@@ -959,12 +990,14 @@ class RailEnv(Environment):
         # When there is a conflict the episode is concluded [failed :'-(]
         agent_conflict = False
         
-        for i in range(self.number_of_agents):
+        # HERE ACTIVATE THE END OF EPISODE IN CASE OF CONFLICT !!!!!!!!!
+        # THIS IS IMPORTANT IF WE WANT TO "ACTIVATE" SINGLE RAIL SECTIONS
+        """for i in range(self.number_of_agents):
             agent = self.agents[i]
             if agent.state_machine.st_signals.movement_conflict:
                 agent_conflict = True
                 self.num_of_conflict += 1
-                break
+                break"""
         
         if have_all_agents_ended or \
            ( (self._max_episode_steps is not None) and (self._elapsed_steps >= self._max_episode_steps)) or agent_conflict:
@@ -1245,8 +1278,9 @@ class RailEnv(Environment):
             for i_station in range(len(self.next_station_to_reach[i_agent])):
                 if not self.next_station_to_reach[i_agent][i_station].rails in array_of_positions_of_stations:
                     array_of_positions_of_stations.append(self.next_station_to_reach[i_agent][i_station].rails)
-                            
-            array_of_positions_of_stations = [item for sublist in array_of_positions_of_stations for item in sublist]
+            
+            if any(type(elements) == list for elements in array_of_positions_of_stations):
+                array_of_positions_of_stations = [item for sublist in array_of_positions_of_stations for item in sublist]
             
             # If the agent has reached a scheduled station update the next station to be reached
             if agent.position in array_of_positions_of_stations:

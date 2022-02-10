@@ -48,7 +48,7 @@ class RailEnvTransitions(Grid4Transitions):
         self.transitions_all = OrderedSet()
         for index, trans in enumerate(self.transitions):
             self.transitions_all.add(trans)
-            if index in (2, 4, 6, 7, 8, 9, 10):
+            if index in (2, 4, 6, 7, 8, 9, 10, 12):
                 for _ in range(3):
                     trans = self.rotate_transition(trans, rotation=90)
                     self.transitions_all.add(trans)

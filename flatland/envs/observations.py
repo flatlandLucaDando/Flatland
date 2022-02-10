@@ -32,8 +32,8 @@ Node = collections.namedtuple('Node', 'dist_own_target_encountered '
                                         'num_agents_ready_to_depart '
                                         'childs')
 
-NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '
-                                        'dist_potential_conflict '
+NodeNew = collections.namedtuple('Node',#'dist_other_agent_encountered '
+                                        #'dist_potential_conflict '
                                         'dist_unusable_switch '
                                         'dist_to_next_branch '
                                         'num_agents_same_direction '
@@ -44,12 +44,12 @@ NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '
                                         'station_positions '
                                         'station_index '
                                         'time_at_which_reach_station '
-                                        'station_positions_other_agent_0 '
-                                        'station_index_other_agent_0 '
-                                        'time_at_which_reach_station_other_agent_0 '
-                                        'station_positions_other_agent_1 '
-                                        'station_index_other_agent_1 '
-                                        'time_at_which_reach_station_other_agent_1 '
+                                        #'station_positions_other_agent_0 '
+                                        #'station_index_other_agent_0 '
+                                        #'time_at_which_reach_station_other_agent_0 '
+                                        #'station_positions_other_agent_1 '
+                                        #'station_index_other_agent_1 '
+                                        #'time_at_which_reach_station_other_agent_1 '
                                         'childs')
 
 
@@ -574,7 +574,7 @@ class TreeTimetableObservation(ObservationBuilder):
     def __init__(self, max_depth: int, predictor: PredictionBuilder = None):
         super().__init__()
         self.max_depth = max_depth
-        self.observation_dim = 15
+        self.observation_dim = 10
         self.location_has_agent = {}
         self.location_has_agent_direction = {}
         self.predictor = predictor
@@ -749,7 +749,7 @@ class TreeTimetableObservation(ObservationBuilder):
         distance_map = self.env.distance_map.get()
 
         # was referring to TreeObsForRailEnv.Node
-        root_node_observation = NodeNew(dist_other_agent_encountered=0, dist_potential_conflict=0,
+        root_node_observation = NodeNew(#dist_other_agent_encountered=0, dist_potential_conflict=0,
                                         dist_unusable_switch=0, dist_to_next_branch=0,
                                         num_agents_same_direction=0, num_agents_opposite_direction=0,
                                         num_agents_malfunctioning=agent.malfunction_handler.malfunction_down_counter,
@@ -758,12 +758,12 @@ class TreeTimetableObservation(ObservationBuilder):
                                         station_positions = 0,
                                         station_index = 0,
                                         time_at_which_reach_station = 0,
-                                        station_positions_other_agent_0=0,
-                                        station_index_other_agent_0=0,
-                                        time_at_which_reach_station_other_agent_0=0,
-                                        station_positions_other_agent_1=0,
-                                        station_index_other_agent_1=0,
-                                        time_at_which_reach_station_other_agent_1=0,
+                                        #station_positions_other_agent_0=0,
+                                        #station_index_other_agent_0=0,
+                                        #time_at_which_reach_station_other_agent_0=0,
+                                        #station_positions_other_agent_1=0,
+                                        #station_index_other_agent_1=0,
+                                        #time_at_which_reach_station_other_agent_1=0,
                                         childs={})
         #print("root node type:", type(root_node_observation))
 
@@ -931,29 +931,54 @@ class TreeTimetableObservation(ObservationBuilder):
             # There is a station in the timetable in the next branch for the agent observer?
             if self.env.get_num_agents() != 1:
                 for i_station in range(len(self.env.next_station_to_reach[handle])):
-                    if position in self.env.next_station_to_reach[handle][i_station].rails:  
-                        station = self.env.next_station_to_reach[handle][i_station] 
-                        array_with_all_the_scheduled_stations = timetable[handle][0]
-                        station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
-                        
-                        index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
-                        
-                        time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                        position_of_stations = tot_dist                      # save the distance from it
+                    # ONE RAIL STATION
+                    if type(self.env.next_station_to_reach[handle][i_station].rails) == tuple:
+                        if position == self.env.next_station_to_reach[handle][i_station].rails:  
+                            station = self.env.next_station_to_reach[handle][i_station] 
+                            array_with_all_the_scheduled_stations = timetable[handle][0]
+                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            
+                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            
+                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            position_of_stations = tot_dist                      # save the distance from it
+                    # TWO RAILS STATION
+                    else:
+                        if position in self.env.next_station_to_reach[handle][i_station].rails:  
+                            station = self.env.next_station_to_reach[handle][i_station] 
+                            array_with_all_the_scheduled_stations = timetable[handle][0]
+                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            
+                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            
+                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            position_of_stations = tot_dist                      # save the distance from it
             else:
                 for i_station in range(len(self.env.next_station_to_reach)):
-                    if position in self.env.next_station_to_reach[i_station].rails: 
-                        station = self.env.next_station_to_reach[i_station]
-                        array_with_all_the_scheduled_stations = timetable[handle][0]
-                         
-                        station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
-                        
-                        index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
-                        
-                        time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                        position_of_stations = tot_dist                      # save the distance from it
+                    # ONE RAIL STATION
+                    if type(self.env.next_station_to_reach[handle][i_station].rails) == tuple:
+                        if position == self.env.next_station_to_reach[handle][i_station].rails:  
+                            station = self.env.next_station_to_reach[handle][i_station] 
+                            array_with_all_the_scheduled_stations = timetable[handle][0]
+                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            
+                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            
+                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            position_of_stations = tot_dist                      # save the distance from it
+                    # TWO RAILS STATION
+                    else:
+                        if position in self.env.next_station_to_reach[handle][i_station].rails:  
+                            station = self.env.next_station_to_reach[handle][i_station] 
+                            array_with_all_the_scheduled_stations = timetable[handle][0]
+                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            
+                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            
+                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            position_of_stations = tot_dist                      # save the distance from it
             
-            
+            # OTHER AGENTS
             # There is a station in the timetable in the next branch for the other agents?
             if self.env.get_num_agents() > 1:
                 for i_agent in range(self.env.get_num_agents()):
@@ -1071,8 +1096,8 @@ class TreeTimetableObservation(ObservationBuilder):
             dist_to_next_branch = tot_dist
 
         # TreeObsForRailEnv.Node
-        node = NodeNew( dist_other_agent_encountered=other_agent_encountered,
-                        dist_potential_conflict=potential_conflict,
+        node = NodeNew( #dist_other_agent_encountered=other_agent_encountered,
+                        #dist_potential_conflict=potential_conflict,
                         dist_unusable_switch=unusable_switch,
                         dist_to_next_branch=dist_to_next_branch,
                         num_agents_same_direction=other_agent_same_direction,
@@ -1083,12 +1108,12 @@ class TreeTimetableObservation(ObservationBuilder):
                         station_positions = position_of_stations,
                         station_index = station_timetable_index,
                         time_at_which_reach_station = time_station,
-                        station_positions_other_agent_0 = position_of_stations_other_agent_0,
-                        station_index_other_agent_0 = station_timetable_index_other_agent_0,
-                        time_at_which_reach_station_other_agent_0 = time_station_other_agent_0,
-                        station_positions_other_agent_1 = position_of_stations_other_agent_1,
-                        station_index_other_agent_1 = station_timetable_index_other_agent_1,
-                        time_at_which_reach_station_other_agent_1 = time_station_other_agent_1,
+                        #station_positions_other_agent_0 = position_of_stations_other_agent_0,
+                        #station_index_other_agent_0 = station_timetable_index_other_agent_0,
+                        #time_at_which_reach_station_other_agent_0 = time_station_other_agent_0,
+                        #station_positions_other_agent_1 = position_of_stations_other_agent_1,
+                        #station_index_other_agent_1 = station_timetable_index_other_agent_1,
+                        #time_at_which_reach_station_other_agent_1 = time_station_other_agent_1,
                         childs={})
 
         # #############################
