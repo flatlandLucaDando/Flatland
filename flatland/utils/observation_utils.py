@@ -83,20 +83,20 @@ def _split_node_into_feature_groups(node):
     return data, distance, agent_data
 
 def _split_node_into_feature_groups_new(node):
-    data = np.zeros(5)
+    data = np.zeros(10)
     agent_data = np.zeros(5)
     
-    #data[0] = node.dist_other_agent_encountered
-    #data[1] = node.dist_potential_conflict
-    data[0] = node.dist_unusable_switch
-    data[1] = node.dist_to_next_branch
+    data[0] = node.dist_other_agent_encountered
+    data[1] = node.dist_potential_conflict
+    data[2] = node.dist_unusable_switch
+    data[3] = node.dist_to_next_branch
     
-    data[2] = node.station_positions
-    data[3] = node.station_index
-    data[4] = node.time_at_which_reach_station
-    #data[5] = node.station_positions_other_agent_0
-    #data[6] = node.station_index_other_agent_0
-    #data[7] = node.time_at_which_reach_station_other_agent_0
+    data[4] = node.station_positions
+    data[5] = node.station_index
+    data[6] = node.time_at_which_reach_station
+    data[7] = node.station_positions_other_agent_0
+    data[8] = node.station_index_other_agent_0
+    data[9] = node.time_at_which_reach_station_other_agent_0
 
     agent_data[0] = node.num_agents_same_direction
     agent_data[1] = node.num_agents_opposite_direction
@@ -112,7 +112,7 @@ def _split_subtree_into_feature_groups(node, current_tree_depth: int, max_tree_d
         remaining_depth = max_tree_depth - current_tree_depth
         # reference: https://stackoverflow.com/questions/515214/total-number-of-nodes-in-a-tree-data-structure
         num_remaining_nodes = int((4 ** (remaining_depth + 1) - 1) / (4 - 1))
-        return [-np.inf] * num_remaining_nodes * 5, [-np.inf] * num_remaining_nodes * 5
+        return [-np.inf] * num_remaining_nodes * 10, [-np.inf] * num_remaining_nodes * 5
 
     data, agent_data = _split_node_into_feature_groups_new(node)
 

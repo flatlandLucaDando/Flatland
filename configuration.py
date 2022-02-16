@@ -750,13 +750,13 @@ if example_training == 'training_3':
 
 	# Lines definition
 	linea_nord = Line(type_line = Connection_type.NORMAL_RAIL, 
-		stations = (genova_station, recco_station, lavagna_station), stops = (1, 1, 1))
+		stations = (genova_station, recco_station, sestri_station), stops = (1, 1, 1))  #, lavagna_station), stops = (1, 1, 1))
 
 	linea_centro = Line(type_line = Connection_type.NORMAL_RAIL, 
 		stations = (genova_station, chiavari_station, lavagna_station), stops = (1, 1, 1))
 
 	linea_sud = Line(type_line = Connection_type.NORMAL_RAIL, 
-		stations = (genova_station, sestri_station, lavagna_station), stops = (1, 1, 1))
+		stations = (sestri_station, lavagna_station), stops = (1, 1)) #stations = (genova_station, sestri_station, lavagna_station), stops = (1, 1, 1))
 
 	stations = [genova_station, recco_station, chiavari_station, lavagna_station, sestri_station]
 
@@ -771,17 +771,17 @@ if example_training == 'training_3':
  
 	# Convoy definition
 	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
-	R103_convoy = Convoy(Type_of_convoy.INTERCITY)
-	R104_convoy = Convoy(Type_of_convoy.INTERCITY)
-	R105_convoy = Convoy(Type_of_convoy.INTERCITY)
+	#R103_convoy = Convoy(Type_of_convoy.INTERCITY)
+	#R104_convoy = Convoy(Type_of_convoy.INTERCITY)
+	#R105_convoy = Convoy(Type_of_convoy.INTERCITY)
 
-	convoys = [R102_convoy, R103_convoy, R104_convoy, R105_convoy]
+	convoys = [R102_convoy] #, R104_convoy] # R103_convoy] #, R104_convoy] #, R105_convoy]
 
 	# Adding train runs
 	R102_convoy.add_train_run(train_run_0)
-	R103_convoy.add_train_run(train_run_1)
-	R104_convoy.add_train_run(train_run_2)
-	R105_convoy.add_train_run(train_run_3)
+	#R103_convoy.add_train_run(train_run_1)
+	#R104_convoy.add_train_run(train_run_2)
+	#R105_convoy.add_train_run(train_run_3)
 
 	# Calculating timetable
 	timetable_example = calculate_timetable(convoys, rail)

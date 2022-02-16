@@ -3,6 +3,7 @@ Definition of the RailEnv environment.
 """
 import random
 from re import I, T
+from tkinter import N
 
 from typing import List, Optional, Dict, Tuple
 
@@ -39,14 +40,14 @@ from structures_rail import av_line
 from configuration import example_training, timetable_example
 
 # Penalities 
-maximum_step_penality = - 0.02  #0.05    # a step is time passing, so a penality for each step is needed
+maximum_step_penality = -0.02  #0.05    # a step is time passing, so a penality for each step is needed
 stop_penality = 0                 # penalty for stopping a moving agent
 reverse_penality = 0              # penalty for reversing the march of an agent
 skip_penality = 0                 # penalty for skipping a station
-conflict_penalty = -1             # penalty when two agents have a conflict (deadlock)
+conflict_penalty = 0             # penalty when two agents have a conflict (deadlock)
 target_not_reached_penalty = 0  # penalty for not reaching the final target (depot)
 default_skip_penalty = 2000
-not_spawning_penalty = -200
+not_spawning_penalty = -2
 
 cancellation_factor = 1
 cancellation_time_buffer = 0
@@ -224,7 +225,18 @@ class RailEnv(Environment):
         self.previous_station = [[(-1,0)]] * number_of_agents
         
         self.dones_for_position = [False] * number_of_agents
-         
+        
+        # List with all the station positions
+        self.station_positions = []
+        
+        for i_agent in range(len(timetable_example)):
+            for i_station in range(len(timetable_example[i_agent][0])):
+                if not timetable_example[i_agent][0][i_station].position in self.station_positions:
+                    self.station_positions.append(timetable_example[i_agent][0][i_station].position)
+        # Array with time that the agents have to wait at stations 
+        # TODO multiple runs
+        self.stop_station_time = [2]*number_of_agents
+        
         if self.get_num_agents() == 1:
             self.next_station_to_reach = [i[0] for i in timetable_example]
             self.next_station_to_reach = self.next_station_to_reach[0]
@@ -392,6 +404,17 @@ class RailEnv(Environment):
         self.previous_station = [[(-1,0)]] * self.number_of_agents
         
         self.dones_for_position = [False] * self.number_of_agents
+        
+        # List with all the station positions
+        self.station_positions = []
+        
+        for i_agent in range(len(timetable_example)):
+            for i_station in range(len(timetable_example[i_agent][0])):
+                if not timetable_example[i_agent][0][i_station].position in self.station_positions:
+                    self.station_positions.append(timetable_example[i_agent][0][i_station].position)
+        # Array with time that the agents have to wait at stations 
+        # TODO multiple runs
+        self.stop_station_time = [2]*self.number_of_agents
         
         # array that conteins the next stations to be reach
         if self.get_num_agents() == 1:
@@ -807,20 +830,39 @@ class RailEnv(Environment):
         state = self.agents[i_agent].state"""
         
         agent = self.agents[i_agent]
+        
+        if agent.state == TrainState.DONE:
+            return
 
         reward = 0
+        
+        if agent.position == None:
+            position = (-1, 0) 
+        elif self._elapsed_steps == agent.earliest_departure:
+            position = agent.initial_position
+        else:
+            position = agent.position
         
         min_dist_from_target = np.inf
             
         # Stations have different rails that can be reached. So is important
         # to calculate distance from all the rails to discover the minimum and maximum once
-        for i_rail in range(len(self.next_station_to_reach[i_agent][0].rails)):  # this doesnt work for multiple station rails
-            distance_from_target = len(a_star(self.rail, agent.position, self.next_station_to_reach[i_agent][0].rails, respect_rail_directions = False))
-            if distance_from_target < min_dist_from_target and distance_from_target != 0:
-                min_dist_from_target = distance_from_target
-            if i_rail != 0:
-                if distance_from_target > self.maximum_distance_from_target[i_agent] and distance_from_target != np.inf:
-                    self.maximum_distance_from_target[i_agent] = distance_from_target
+        if self.get_num_agents() != 1:
+            for i_rail in range(len(self.next_station_to_reach[i_agent][0].rails)):  # this doesnt work for multiple station rails
+                distance_from_target = len(a_star(self.rail, position, self.next_station_to_reach[i_agent][0].rails, respect_rail_directions = False))
+                if distance_from_target < min_dist_from_target and distance_from_target != 0:
+                    min_dist_from_target = distance_from_target
+                if i_rail != 0:
+                    if distance_from_target > self.maximum_distance_from_target[i_agent] and distance_from_target != np.inf:
+                        self.maximum_distance_from_target[i_agent] = distance_from_target
+        else:
+            for i_rail in range(len(self.next_station_to_reach[0].rails)):  # this doesnt work for multiple station rails
+                distance_from_target = len(a_star(self.rail, position, self.next_station_to_reach[0].rails, respect_rail_directions = False))
+                if distance_from_target < min_dist_from_target and distance_from_target != 0:
+                    min_dist_from_target = distance_from_target
+                if i_rail != 0:
+                    if distance_from_target > self.maximum_distance_from_target[i_agent] and distance_from_target != np.inf:
+                        self.maximum_distance_from_target[i_agent] = distance_from_target
         
         # If a_star can't produce a result the distance calculated is 0, so we set it at maximum_distance
         if distance_from_target == 0:
@@ -833,12 +875,20 @@ class RailEnv(Environment):
             self.maximum_distance_from_target[i_agent] = min_dist_from_target
             
         # When I reach a station the maximum distance should be reset and then it's calculated a new maximum distance
-        if type(self.next_station_to_reach[i_agent][0].rails) == tuple:
-            if agent.position == self.next_station_to_reach[i_agent][0].rails:
-                self.maximum_distance_from_target[i_agent] = 1
+        if self.get_num_agents() != 1:
+            if type(self.next_station_to_reach[i_agent][0].rails) == tuple:
+                if position == self.next_station_to_reach[i_agent][0].rails:
+                    self.maximum_distance_from_target[i_agent] = 1
+            else:
+                if position in self.next_station_to_reach[i_agent][0].rails:
+                    self.maximum_distance_from_target[i_agent] = 1
         else:
-            if agent.position in self.next_station_to_reach[i_agent][0].rails:
-                self.maximum_distance_from_target[i_agent] = 1
+            if type(self.next_station_to_reach[0].rails) == tuple:
+                if position == self.next_station_to_reach[0].rails:
+                    self.maximum_distance_from_target[i_agent] = 1
+            else:
+                if position in self.next_station_to_reach[i_agent][0].rails:
+                    self.maximum_distance_from_target[i_agent] = 1
         
         # The penalty increases with respect to the distance to the next station scheduled
         reward = (min_dist_from_target / self.maximum_distance_from_target[i_agent]) * maximum_step_penality
@@ -850,7 +900,7 @@ class RailEnv(Environment):
             reward += stop_penality"""
         
         # If an agent decided not to spawn after 10 minutes with respect to the scheduled starting time we punish it
-        if self._elapsed_steps > agent.earliest_departure + 10:
+        if self._elapsed_steps > agent.earliest_departure + 2:
             if agent.position == None:
                 reward += not_spawning_penalty
 
@@ -1241,9 +1291,8 @@ class RailEnv(Environment):
             i_agent = agent.handle
 
             ## Update rewards 
-            if agent.state.is_on_map_state():
-                if agent.state != TrainState.MALFUNCTION:                           
-                    self.update_step_rewards(i_agent)
+            if agent.state != TrainState.MALFUNCTION and agent.state != TrainState.DONE:                           
+                self.update_step_rewards(i_agent)
 
             """ # The if condition is important to avoid multiple penalties due to malfunctions occurred in stations
             if agent.state.is_on_map_state() or agent.state == TrainState.DONE:
@@ -1275,15 +1324,21 @@ class RailEnv(Environment):
                
             # Checking if the agent has reached one of the scheduled station
             array_of_positions_of_stations = []   # array with the position of the stations
-            for i_station in range(len(self.next_station_to_reach[i_agent])):
-                if not self.next_station_to_reach[i_agent][i_station].rails in array_of_positions_of_stations:
-                    array_of_positions_of_stations.append(self.next_station_to_reach[i_agent][i_station].rails)
-            
+            if self.get_num_agents() != 1:
+                for i_station in range(len(self.next_station_to_reach[i_agent])):
+                    if not self.next_station_to_reach[i_agent][i_station].rails in array_of_positions_of_stations:
+                        array_of_positions_of_stations.append(self.next_station_to_reach[i_agent][i_station].rails)
+            else:
+                for i_station in range(len(self.next_station_to_reach)):
+                    if not self.next_station_to_reach[i_station].rails in array_of_positions_of_stations:
+                        array_of_positions_of_stations.append(self.next_station_to_reach[i_station].rails)
+                
             if any(type(elements) == list for elements in array_of_positions_of_stations):
                 array_of_positions_of_stations = [item for sublist in array_of_positions_of_stations for item in sublist]
             
             # If the agent has reached a scheduled station update the next station to be reached
             if agent.position in array_of_positions_of_stations:
+                # HERE ADDING THE STOP AT STATION
                 station_in_which_i_am = self.check_station_from_rails(timetable_example, agent.position)
                 self.timetable_real_time(timetable_example, station_in_which_i_am, agent.handle)
         

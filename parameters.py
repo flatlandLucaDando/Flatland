@@ -62,7 +62,7 @@ parser.add_argument("--action_size", help="define the action size [reduced,full]
 training_params = parser.parse_args()
 
 obs_params = {
-    "observation_tree_depth": 3,
+    "observation_tree_depth": 2,
     "observation_radius": 10,
     "observation_max_path_depth": 20
 }

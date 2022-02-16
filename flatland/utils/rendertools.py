@@ -678,12 +678,20 @@ class RenderLocal(RenderBase):
                     continue
                 # HERE I MADE A MODIFICATION
                 target_array = []
-                for i in range(len(self.env.next_station_to_reach[agent_idx])):
-                    target = self.env.next_station_to_reach[agent_idx][i].position
-                    targets[tuple(target)] = agent_idx
-                #targets[tuple(agent.target)] = agent_idx
-                    selected[tuple(target)] = (agent_idx == selected_agent)
-                #selected[tuple(agent.target)] = agent_idx
+                if self.env.get_num_agents() != 1:
+                    for i in range(len(self.env.next_station_to_reach[agent_idx])):
+                        target = self.env.next_station_to_reach[agent_idx][i].position
+                        targets[tuple(target)] = agent_idx
+                    #targets[tuple(agent.target)] = agent_idx
+                        selected[tuple(target)] = (agent_idx == selected_agent)
+                    #selected[tuple(agent.target)] = agent_idx
+                else:
+                    for i in range(len(self.env.next_station_to_reach)):
+                        target = self.env.next_station_to_reach[i].position
+                        targets[tuple(target)] = agent_idx
+                    #targets[tuple(agent.target)] = agent_idx
+                        selected[tuple(target)] = (agent_idx == selected_agent)
+                    #selected[tuple(agent.target)] = agent_idx
 
             # Draw each cell independently
             for r in range(env.height):
