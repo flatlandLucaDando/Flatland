@@ -13,7 +13,7 @@ from flatland.data_structures.line import Line
 # Import the timetable utils
 from flatland.envs.plan_to_follow_utils import calculate_timetable
 
-example_training = 'training_3'
+example_training = 'training_one_rail'
 '''
 ###############################################################
 ######################   EXAMPLE 1  #########################
@@ -785,3 +785,63 @@ if example_training == 'training_3':
 
 	# Calculating timetable
 	timetable_example = calculate_timetable(convoys, rail)
+
+
+
+
+
+
+
+
+
+'''
+###############################################################
+############one_rail_3_stations################################
+###############################################################
+'''
+
+if example_training == 'training_one_rail':
+	# Import the examples
+	from examples.one_rail_3_stations import rail, railway_example, av_line
+
+	# Station definition
+	genova_station = Station('Genova', position = (4,2), capacity = 1, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+	recco_station = Station('Recco', position = (4,13), capacity = 1, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+	chiavari_station = Station('Chiavari', position = (4,23), capacity = 1, min_wait_time = [1, 1, 1], additional_wait_percent =1, importance = 1, railway_topology = rail)
+
+	# Connection definition
+	connection_genova_recco = Rail_connection(station_a = genova_station, 
+		station_b = recco_station, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
+
+	connection_recco_chiavari = Rail_connection(station_a = recco_station, 
+		station_b = chiavari_station, rail_connection_type = Connection_type.NORMAL_RAIL,
+		max_speed_usable = [0.9, 0.6, 0.3], additional_runtime_percent = [0.1, 0.1, 0.1])
+
+
+	# Lines definition
+	linea_nord = Line(type_line = Connection_type.NORMAL_RAIL, 
+		stations = (genova_station, recco_station, chiavari_station), stops = (1, 1, 1))  #, lavagna_station), stops = (1, 1, 1))
+
+	stations = [genova_station, recco_station, chiavari_station]
+
+	# Train run for the first convoy
+	train_run_0 = Train_run(linea_nord, starting_time = 15, from_depot = True, to_depot= True)
+
+ 
+	# Convoy definition
+	R102_convoy = Convoy(Type_of_convoy.INTERCITY)
+
+
+	convoys = [R102_convoy]
+
+	# Adding train runs
+	R102_convoy.add_train_run(train_run_0)
+
+	# Calculating timetable
+	timetable_example = calculate_timetable(convoys, rail)
+
+
+
+
+	
