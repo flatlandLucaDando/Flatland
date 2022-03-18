@@ -31,8 +31,8 @@ def preprocess_action_when_waiting(action, state):
     """
     Set action to DO_NOTHING if in waiting state
     """
-    if state == TrainState.WAITING:
-        action = RailEnvActions.DO_NOTHING
+    """if state == TrainState.WAITING:
+        action = RailEnvActions.DO_NOTHING"""
     return action
 
 
@@ -44,8 +44,8 @@ def preprocess_raw_action(action, state, saved_action):
     """
     action = process_illegal_action(action)
 
-    if action == RailEnvActions.DO_NOTHING:
-        action = process_do_nothing(state, saved_action)
+    """if action == RailEnvActions.DO_NOTHING:
+        action = process_do_nothing(state, saved_action)"""
 
     return action
 

@@ -32,24 +32,20 @@ Node = collections.namedtuple('Node', 'dist_own_target_encountered '
                                         'num_agents_ready_to_depart '
                                         'childs')
 
-NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '
-                                        'dist_potential_conflict '
-                                        'dist_unusable_switch '
+NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '     # MODIFICARE non mi interessa se doppio binario senso opposto (non crea conflitti)
+                                        'dist_potential_conflict '          # CONTROLLARE CHE IL CONFLITTO SIA CALCOLATO BENE
+                                        'dist_unusable_switch '             # COME SOPRA
                                         'dist_to_next_branch '
                                         'num_agents_same_direction '
-                                        'num_agents_opposite_direction '
+                                        'num_agents_opposite_direction '   
                                         'num_agents_malfunctioning '
                                         'speed_min_fractional '
                                         'num_agents_ready_to_depart '
-                                        'station_positions '
-                                        'station_index '
-                                        'time_at_which_reach_station '
-                                        'station_positions_other_agent_0 '
-                                        'station_index_other_agent_0 '
-                                        'time_at_which_reach_station_other_agent_0 '
-                                        #'station_positions_other_agent_1 '
-                                        #'station_index_other_agent_1 '
-                                        #'time_at_which_reach_station_other_agent_1 '
+                                        'dist_own_stations '        # dist_own_stations
+                                        'own_stations_index '            # own_stations_index
+                                        'time_own_station '
+                                        'dist_other_station_encountered '    # dist_other_station_encountered
+                                        'time_other_station_encountered '    # time_other_station_encountered
                                         'childs')
 
 
@@ -574,7 +570,7 @@ class TreeTimetableObservation(ObservationBuilder):
     def __init__(self, max_depth: int, predictor: PredictionBuilder = None):
         super().__init__()
         self.max_depth = max_depth
-        self.observation_dim = 15
+        self.observation_dim = 14
         self.location_has_agent = {}
         self.location_has_agent_direction = {}
         self.predictor = predictor
@@ -755,15 +751,11 @@ class TreeTimetableObservation(ObservationBuilder):
                                         num_agents_malfunctioning=agent.malfunction_handler.malfunction_down_counter,
                                         speed_min_fractional=agent.speed_counter.speed,
                                         num_agents_ready_to_depart=0,
-                                        station_positions = 0,
-                                        station_index = 0,
-                                        time_at_which_reach_station = 0,
-                                        station_positions_other_agent_0=0,
-                                        station_index_other_agent_0=0,
-                                        time_at_which_reach_station_other_agent_0=0,
-                                        #station_positions_other_agent_1=0,
-                                        #station_index_other_agent_1=0,
-                                        #time_at_which_reach_station_other_agent_1=0,
+                                        dist_own_stations = 0,
+                                        own_stations_index = 0,
+                                        time_own_station = 0,
+                                        dist_other_station_encountered=0,
+                                        time_other_station_encountered=0,
                                         childs={})
         #print("root node type:", type(root_node_observation))
 
@@ -777,7 +769,6 @@ class TreeTimetableObservation(ObservationBuilder):
         if num_transitions == 1:
             orientation = np.argmax(possible_transitions)
 
-        # TODO permettere sempre nel nodo la direzione backward...Far sì che il ramo backward esista sempre
         for i, branch_direction in enumerate([(orientation + i) % 4 for i in range(-1, 3)]):
 
             if possible_transitions[branch_direction]:
@@ -821,25 +812,22 @@ class TreeTimetableObservation(ObservationBuilder):
         visited = OrderedSet()
         agent = self.env.agents[handle]
         time_per_cell = np.reciprocal(agent.speed_counter.speed)
-        other_agent_encountered = np.inf
-        potential_conflict = np.inf
-        unusable_switch = np.inf
-        position_of_stations = np.inf
-        position_of_stations_other_agent_0 = np.inf
-        position_of_stations_other_agent_1 = np.inf
-        station_timetable_index = np.inf
-        station_timetable_index_other_agent_0 = np.inf
-        station_timetable_index_other_agent_1 = np.inf
-        time_station = np.inf
-        time_station_other_agent_0 = np.inf
-        time_station_other_agent_1 = np.inf
         
-        other_agent_same_direction = 0
-        other_agent_opposite_direction = 0
-        malfunctioning_agent = 0
-        min_fractional_speed = 1.
+        dist_other_agent_encountered = np.inf
+        dist_potential_conflict = np.inf
+        dist_unusable_switch = np.inf
+        dist_own_stations = np.inf
+        dist_other_station_encountered = np.inf
+        own_stations_index = np.inf
+        time_own_station = np.inf
+        time_other_station_encountered = np.inf
+        
+        num_agents_same_direction = 0
+        num_agents_opposite_direction = 0
+        num_agents_malfunctioning = 0
+        speed_min_fractional = 1.
         num_steps = 1
-        other_agent_ready_to_depart_encountered = 0
+        num_agents_ready_to_depart = 0
         
             
         # Timetable informations
@@ -853,30 +841,30 @@ class TreeTimetableObservation(ObservationBuilder):
             # #############################
             # Modify here to compute any useful data required to build the end node's features. This code is called
             # for each cell visited between the previous branching node and the next switch / target / dead-end.
-            if position in self.location_has_agent:
-                if tot_dist < other_agent_encountered:
-                    other_agent_encountered = tot_dist
+            if position in self.location_has_agent and rail.grid[position] == 0:   # If the opposite agent is in a single rail we see it
+                if tot_dist < dist_other_agent_encountered:                        # because it can be dangerous                 
+                    dist_other_agent_encountered = tot_dist
                     
 
                 # Check if any of the observed agents is malfunctioning, store agent with longest duration left
-                if self.location_has_agent_malfunction[position] > malfunctioning_agent:
-                    malfunctioning_agent = self.location_has_agent_malfunction[position]
+                if self.location_has_agent_malfunction[position] > num_agents_malfunctioning:
+                    num_agents_malfunctioning = self.location_has_agent_malfunction[position]
 
                 other_agent_ready_to_depart_encountered += self.location_has_agent_ready_to_depart.get(position, 0)
 
                 if self.location_has_agent_direction[position] == direction:
                     # Cummulate the number of agents on branch with same direction
-                    other_agent_same_direction += 1
+                    num_agents_same_direction += 1
 
                     # Check fractional speed of agents
                     current_fractional_speed = self.location_has_agent_speed[position]
-                    if current_fractional_speed < min_fractional_speed:
-                        min_fractional_speed = current_fractional_speed
+                    if current_fractional_speed < speed_min_fractional:
+                        speed_min_fractional = current_fractional_speed
 
                 else:
                     # If no agent in the same direction was found all agents in that position are other direction
                     # Attention this counts to many agents as a few might be going off on a switch.
-                    other_agent_opposite_direction += self.location_has_agent[position]
+                    num_agents_opposite_direction += self.location_has_agent[position]
 
                 # Check number of possible transitions for agent and total number of transitions in cell (type)
             cell_transitions = self.env.rail.get_transitions(*position, direction)
@@ -901,10 +889,11 @@ class TreeTimetableObservation(ObservationBuilder):
                         for ca in conflicting_agent[0]:
                             if direction != self.predicted_dir[predicted_time][ca] and cell_transitions[
                                 self._reverse_dir(
-                                    self.predicted_dir[predicted_time][ca])] == 1 and tot_dist < potential_conflict:
-                                potential_conflict = tot_dist
-                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < potential_conflict:
-                                potential_conflict = tot_dist
+                                    self.predicted_dir[predicted_time][ca])] == 1 and tot_dist < dist_potential_conflict \
+                                and rail.grid[position] == 0:          # If single rail
+                                dist_potential_conflict = tot_dist
+                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < dist_potential_conflict:
+                                dist_potential_conflict = tot_dist
 
                     # Look for conflicting paths at distance num_step-1
                     elif int_position in np.delete(self.predicted_pos[pre_step], handle, 0):
@@ -912,10 +901,11 @@ class TreeTimetableObservation(ObservationBuilder):
                         for ca in conflicting_agent[0]:
                             if direction != self.predicted_dir[pre_step][ca] \
                                 and cell_transitions[self._reverse_dir(self.predicted_dir[pre_step][ca])] == 1 \
-                                and tot_dist < potential_conflict:  # noqa: E125
-                                potential_conflict = tot_dist
-                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < potential_conflict:
-                                potential_conflict = tot_dist
+                                and tot_dist < dist_potential_conflict \
+                                and rail.grid[position] == 0:       # If single rail
+                                dist_potential_conflict = tot_dist
+                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < dist_potential_conflict:
+                                dist_potential_conflict = tot_dist
 
                     # Look for conflicting paths at distance num_step+1
                     elif int_position in np.delete(self.predicted_pos[post_step], handle, 0):
@@ -923,12 +913,14 @@ class TreeTimetableObservation(ObservationBuilder):
                         for ca in conflicting_agent[0]:
                             if direction != self.predicted_dir[post_step][ca] and cell_transitions[self._reverse_dir(
                                 self.predicted_dir[post_step][ca])] == 1 \
-                                and tot_dist < potential_conflict:  # noqa: E125
-                                potential_conflict = tot_dist
-                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < potential_conflict:
-                                potential_conflict = tot_dist
+                                and tot_dist < dist_potential_conflict \
+                                and rail.grid[position] == 0:           # If single rail
+                                dist_potential_conflict = tot_dist
+                            if self.env.agents[ca].state == TrainState.DONE and tot_dist < dist_potential_conflict:
+                                dist_potential_conflict = tot_dist
     
             # There is a station in the timetable in the next branch for the agent observer?
+            min_time = np.inf
             if self.env.get_num_agents() != 1:
                 for i_station in range(len(self.env.next_station_to_reach[handle])):
                     # ONE RAIL STATION
@@ -936,23 +928,35 @@ class TreeTimetableObservation(ObservationBuilder):
                         if position == self.env.next_station_to_reach[handle][i_station].rails:  
                             station = self.env.next_station_to_reach[handle][i_station] 
                             array_with_all_the_scheduled_stations = timetable[handle][0]
-                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            own_stations_index = (i_station * 0.1) + 0.1    # save the index of the station
                             
-                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            for i_station in range(len(timetable[handle][0])):
+                                time_now = self.env._elapsed_steps 
+                                if timetable[handle][0][i_station].position == position:
+                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    if min_time > time_difference:
+                                        index_of_my_station = i_station
                             
-                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                            position_of_stations = tot_dist                      # save the distance from it
+                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            dist_own_stations = tot_dist                      # save the distance from it
+                            break
                     # TWO RAILS STATION
                     else:
                         if position in self.env.next_station_to_reach[handle][i_station].rails:  
                             station = self.env.next_station_to_reach[handle][i_station] 
                             array_with_all_the_scheduled_stations = timetable[handle][0]
-                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            own_stations_index = (i_station * 0.1) + 0.1    # save the index of the station
                             
-                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            for i_station in range(len(timetable[handle][0])):
+                                time_now = self.env._elapsed_steps 
+                                if timetable[handle][0][i_station].position == position:
+                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    if min_time > time_difference:
+                                        index_of_my_station = i_station
                             
-                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                            position_of_stations = tot_dist                      # save the distance from it
+                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            dist_own_stations = tot_dist                      # save the distance from it
+                            break
             else:
                 for i_station in range(len(self.env.next_station_to_reach)):
                     # ONE RAIL STATION
@@ -960,23 +964,35 @@ class TreeTimetableObservation(ObservationBuilder):
                         if position == self.env.next_station_to_reach[i_station].rails:  
                             station = self.env.next_station_to_reach[i_station] 
                             array_with_all_the_scheduled_stations = timetable[handle][0]
-                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            own_stations_index = (i_station * 0.1) + 0.1    # save the index of the station
                             
-                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            for i_station in range(len(timetable[handle][0])):
+                                time_now = self.env._elapsed_steps 
+                                if timetable[handle][0][i_station].position == position:
+                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    if min_time > time_difference:
+                                        index_of_my_station = i_station
                             
-                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                            position_of_stations = tot_dist                      # save the distance from it
+                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            dist_own_stations = tot_dist                      # save the distance from it
+                            break
                     # TWO RAILS STATION
                     else:
                         if position in self.env.next_station_to_reach[handle][i_station].rails:  
                             station = self.env.next_station_to_reach[handle][i_station] 
                             array_with_all_the_scheduled_stations = timetable[handle][0]
-                            station_timetable_index = (i_station * 0.1) + 0.1    # save the index of the station
+                            own_stations_index = (i_station * 0.1) + 0.1    # save the index of the station
                             
-                            index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
+                            for i_station in range(len(timetable[handle][0])):
+                                time_now = self.env._elapsed_steps 
+                                if timetable[handle][0][i_station].position == position:
+                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    if min_time > time_difference:
+                                        index_of_my_station = i_station
                             
-                            time_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
-                            position_of_stations = tot_dist                      # save the distance from it
+                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            dist_own_stations = tot_dist                      # save the distance from it
+                            break
             
             # OTHER AGENTS
             # There is a station in the timetable in the next branch for the other agents?
@@ -987,12 +1003,10 @@ class TreeTimetableObservation(ObservationBuilder):
                             if position in self.env.next_station_to_reach[i_agent][0].rails:
                                 station = self.env.next_station_to_reach[i_agent][0] 
                                 array_with_all_the_scheduled_stations = timetable[i_agent][0]
-                                    
-                                station_timetable_index_other_agent_0 = 0.1    # save the index of the station
                                 
                                 index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
                                 
-                                time_station_other_agent_0 = timetable[i_agent][1][index_of_my_station]     # save the time at which i have to reach it
+                                time_other_station_encountered = timetable[i_agent][1][index_of_my_station]     # save the time at which i have to reach it
                                 
                                 # Calculate the min dist from the other agent to the station
                                 rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
@@ -1008,18 +1022,16 @@ class TreeTimetableObservation(ObservationBuilder):
                                     if dist < min_dist and dist != 0:
                                         min_dist = dist
                                 
-                                position_of_stations_other_agent_0 = min_dist                       # save the distance from it
+                                dist_other_station_encountered = min_dist                       # save the distance from it
                                 
                             if j_agent != i_agent:
                                 if position in self.env.next_station_to_reach[j_agent][0].rails:
                                     station = self.env.next_station_to_reach[j_agent][0] 
                                     array_with_all_the_scheduled_stations = timetable[j_agent][0]
-                                        
-                                    station_timetable_index_other_agent_0 = 0.1    # save the index of the station
-                                    
+
                                     index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
                                     
-                                    time_station_other_agent_0 = timetable[j_agent][1][index_of_my_station]     # save the time at which i have to reach it
+                                    time_other_station_encountered = timetable[j_agent][1][index_of_my_station]     # save the time at which i have to reach it
                                     
                                     # Calculate the min dist from the other agent to the station
                                     rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
@@ -1035,7 +1047,7 @@ class TreeTimetableObservation(ObservationBuilder):
                                         if dist < min_dist and dist != 0:
                                             min_dist = dist
                                     
-                                    position_of_stations_other_agent_0 = min_dist                       # save the distance from it
+                                    dist_other_station_encountered = min_dist                       # save the distance from it
 
             
             # #############################
@@ -1054,8 +1066,8 @@ class TreeTimetableObservation(ObservationBuilder):
             exploring = False
 
             # Detect Switches that can only be used by other agents.
-            if total_transitions > 2 > num_transitions and tot_dist < unusable_switch:
-                unusable_switch = tot_dist
+            if total_transitions > 2 > num_transitions and tot_dist < dist_unusable_switch:
+                dist_unusable_switch = tot_dist
 
             if num_transitions == 1:
                 # Check if dead-end, or if we can go forward along direction
@@ -1096,21 +1108,20 @@ class TreeTimetableObservation(ObservationBuilder):
             dist_to_next_branch = tot_dist
 
         # TreeObsForRailEnv.Node
-        node = NodeNew( dist_other_agent_encountered=other_agent_encountered,
-                        dist_potential_conflict=potential_conflict,
-                        dist_unusable_switch=unusable_switch,
+        node = NodeNew( dist_other_agent_encountered=dist_other_agent_encountered,
+                        dist_potential_conflict=dist_potential_conflict,
+                        dist_unusable_switch=dist_unusable_switch,
                         dist_to_next_branch=dist_to_next_branch,
-                        num_agents_same_direction=other_agent_same_direction,
-                        num_agents_opposite_direction=other_agent_opposite_direction,
-                        num_agents_malfunctioning=malfunctioning_agent,
-                        speed_min_fractional=min_fractional_speed,
-                        num_agents_ready_to_depart=other_agent_ready_to_depart_encountered,
-                        station_positions = position_of_stations,
-                        station_index = station_timetable_index,
-                        time_at_which_reach_station = time_station,
-                        station_positions_other_agent_0 = position_of_stations_other_agent_0,
-                        station_index_other_agent_0 = station_timetable_index_other_agent_0,
-                        time_at_which_reach_station_other_agent_0 = time_station_other_agent_0,
+                        num_agents_same_direction=num_agents_same_direction,
+                        num_agents_opposite_direction=num_agents_opposite_direction,
+                        num_agents_malfunctioning=num_agents_malfunctioning,
+                        speed_min_fractional=speed_min_fractional,
+                        num_agents_ready_to_depart=num_agents_ready_to_depart,
+                        dist_own_stations = dist_own_stations,
+                        own_stations_index = own_stations_index,
+                        time_own_station = time_own_station,
+                        dist_other_station_encountered = dist_other_station_encountered,
+                        time_other_station_encountered = time_other_station_encountered,
                         #station_positions_other_agent_1 = position_of_stations_other_agent_1,
                         #station_index_other_agent_1 = station_timetable_index_other_agent_1,
                         #time_at_which_reach_station_other_agent_1 = time_station_other_agent_1,

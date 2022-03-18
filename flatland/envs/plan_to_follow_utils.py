@@ -131,7 +131,7 @@ def action_to_do(timetable, railway_topology):
         path_partial_result = []
         for station in range(num_of_stations - 1): 
             path_partial_result.append(a_star(railway_topology,timetable[train_i][3][station], timetable[train_i][3][station + 1]))
-            if path_partial_result == []:
+            if path_partial_result[station] == []:
                 raise ImportError('There s not a path between station', station, 'and station', station + 1 )
 
         # Final result for all the trains and train runs
@@ -225,7 +225,7 @@ def action_to_do(timetable, railway_topology):
                                 if len(path_result[train_i][station + 1]) == 1:
                                     continue
                             # If is an intermediate station I need to stop the min wait time
-                            for i in range(3):   # TODO ADD THE WAITING TIMES OF THE STATIONS
+                            for i in range(2):   # TODO ADD THE WAITING TIMES OF THE STATIONS
                                 actions_single_train_run.append(RailEnvActions.STOP_MOVING)
 
                         prev_direction = direction

@@ -171,6 +171,7 @@ class MotionCheck(object):
             # if in blocked, it will not also be in a swap pred tree, so no need to worry about overwriting
             if v in svBlocked:
                 self.G.nodes[v]["color"] = "red"
+                
             # not blocked but has two or more predecessors, ie >=2 agents waiting to enter this node
             elif len(dPred)>1:
 

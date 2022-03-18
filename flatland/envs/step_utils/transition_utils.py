@@ -1,7 +1,9 @@
 from typing import Tuple
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.rail_env_action import RailEnvActions
+#from main import interruption
 
+interruption = True
 
 def check_action(action, position, direction, rail):
     """
@@ -33,9 +35,10 @@ def check_action(action, position, direction, rail):
         if num_transitions <= 1:
             transition_valid = False
 
-    """    elif action == RailEnvActions.REVERSE:
+    elif action == RailEnvActions.REVERSE and interruption:
+        # Reverse active only if interruption in the railway
         new_direction =  direction + 2
-        transition_valid = True"""
+        transition_valid = True
 
 
     new_direction %= 4  # Dipam : Why?

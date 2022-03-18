@@ -1,5 +1,5 @@
 eps = 1
-max_steps = 7500
+max_steps = 15000
 eps_decay = 0.9999
 
 for a in range(max_steps + 1):

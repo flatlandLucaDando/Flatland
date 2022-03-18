@@ -29,7 +29,6 @@ from configuration import railway_example, stations, timetable_example, example_
 from flatland.envs.agent import RandomAgent
 from flatland.envs.step_utils.states import TrainState
 from flatland.envs.predictions import ShortestPathPredictorForRailEnv
-from flatland.utils.deadlock_check import find_and_punish_deadlock
 
 from flatland.utils.timer import Timer
 from flatland.utils.observation_utils import normalize_global_observation, normalize_observation
@@ -45,11 +44,11 @@ plt.rcParams["animation.html"] = "jshtml"
 
 
 ###### TRAINING PARAMETERS #######
-n_episodes = 7500
+n_episodes = 15000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.9999
-max_steps = 250           # 1440 one day
+max_steps = 200           # 1440 one day
 checkpoint_interval = 100
 
 mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
@@ -71,7 +70,6 @@ training_id = now.strftime('%y%m%d%H%M%S')
 # eps_decay 
 # step_maximum_penality
 # % used in the sparse reward
-# penalty given in the function find_and_punish_deadlock
 #########################################################
 
 render = False
@@ -97,7 +95,6 @@ save_replay_buffer = True
 
 ####################################################################
 
-
 def display_episode(frames):
     fig, ax = plt.subplots(figsize=(12,12))
     imgplot = plt.imshow(frames[0])
@@ -115,10 +112,8 @@ def choose_a_random_training_configuration(env, max_steps):
     if example_training == 'training0':
         case = 0
         if case == 0:
-            env.agents[1].initial_position = (6,8)
-            env.agents[2].initial_position = (5,8)
+            env.agents[1].initial_position = (6,10)
             make_a_deterministic_interruption(env.agents[1], max_steps)
-            make_a_deterministic_interruption(env.agents[2], max_steps)
             return    
         elif case == 1:
             env.agents[1].initial_position = (6,15)
@@ -152,18 +147,23 @@ def format_action_prob(action_probs):
     return buffer
 
 
-def evaluate_policy():
+def evaluate_policy(environment, environment_renderer, tree_observation, policy, train_params, obs_params):
     #####################
     ## Evaluate policy ##
     #####################
+    
+    num_of_tests = train_params.n_evaluation_episodes
+    max_steps = environment._max_episode_steps
+    
     # Reset environment and get initial observations for all agents
-    env.reset()
+    environment.reset()
     # Reset the rendering system
-    env_renderer.reset()
+    environment_renderer.reset()
 
     frame_step = 0
     frames = []
     score = 0
+    action_dict = dict()
     num_of_tests = 1
 
     total_steps = 0
@@ -186,54 +186,67 @@ def evaluate_policy():
     for test_episode in range(num_of_tests):
         
         # Reset environment and get initial observations for all agents
-        env.reset()
+        environment.reset()
         # Reset the rendering system
-        env_renderer.reset()
+        environment_renderer.reset()
         # Reset the scores and metrics
-        score = 0
-        metric = 0
+        score = 0.0
+        metric = 0.0
         # Taking the first observation
-        agent_obs, info = env.reset(regenerate_rail=True, regenerate_schedule=True)
-        
+        agent_obs, info = environment.reset(regenerate_rail=True, regenerate_schedule=True)
         final_step = 0
+        counter_station = 0
         
         policy.start_episode(train=False)
         
         for step in range(max_steps):
             
+            env.agents[1].initial_position = (6,7)
+            make_a_deterministic_interruption(env.agents[1], max_steps)
+            
             if video_save:
                 # Check if this work with multiple tests in the same for loop
-                env_renderer.gl.save_image(test_directory_name + "flatland_episode_and_step_{:04d}.bmp".format(total_steps))
+                environment_renderer.gl.save_image(test_directory_name + "flatland_episode_and_step_{:04d}.bmp".format(total_steps))
             
-            for a in range(env.get_num_agents()):
-                agent_obs[a] = normalize_observation(agent_obs[agent], observation_tree_depth, observation_radius=observation_radius)
-                
-                update_values[a] = True
-                action = policy.act(a, agent_obs[a], eps = 0.0)
-
-                action_count[action] += 1
-                actions_taken.append(action)
+            policy.start_step(train=False)
+            
+            for a in range(environment.get_num_agents()):
+                if environment.agents[a].position in environment.station_positions and environment.stop_station_time[a] > 0 \
+                    and step > environment.agents[a].earliest_departure + 2:
+                    # AGGIUNGERE CONTROLLI SUGLI ORARI ARRIVO - PARTENZA
+                    action = RailEnvActions.STOP_MOVING
+                    environment.stop_station_time[a] -= 1
+                else:
+                    agent_obs[a] = normalize_observation(agent_obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                    action = policy.act(a, agent_obs[a], eps=0.0)
+                # Restart the stop_timer
+                if environment.stop_station_time[a] == 0:
+                    if counter_station >= 4:
+                        environment.stop_station_time[a] = 2  # station.min_waiting_time # For now the timer is defaulted
+                        counter_station = 0
+                    counter_station += 1
                 action_dict.update({a: action})
-                
-            agent_obs, all_rewards, done, info = env.step(action_dict)
+            policy.end_step(train=False)    
+            agent_obs, all_rewards, done, info = environment.step(action_dict)
             
-            for a in range(env.get_num_agents()):
+            for a in range(environment.get_num_agents()):
                 score += all_rewards[a]
-                if env.agents[a].state == TrainState.DONE:
+                if environment.agents[a].state == TrainState.DONE:
                     done[a] = True
             
-            env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
+            environment_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
             
             total_steps += 1
             
             if done['__all__']:
                 break
-            
+        
+        policy.end_episode(train=False)    
         # metric near to 1 is great result
-        for agent_handle in env.get_agent_handles():
-            metric += env.calculate_metric_single_agent(timetable, agent_handle)
+        for agent_handle in range(1):
+            metric += environment.calculate_metric_single_agent(timetable, agent_handle)
             
-        metric = metric/num_of_agents
+        metric = metric/1
         
         tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
         
@@ -479,6 +492,12 @@ frames = []
 
 score_mean = [0] * plateau_window
 
+
+policy.load("checkpoints/policy_trained/700.pth")
+policy.load_replay_buffer("replay_buffers/policy_trained/700.pkl")
+policy.test()
+
+
 os.makedirs("output/frames", exist_ok=True)
 
 for episode_idx in range(n_episodes + 1):
@@ -543,13 +562,17 @@ for episode_idx in range(n_episodes + 1):
 
     # Here define the actions to do
         # Broken agents
-        if training_flag == 'training0' and not deterministic_interruption_activation or example_training == 'one_rail':
+        # INTERRUPTION --------------------------------------------------------------------------------------------
+        env.agents[1].initial_position = (6,7)
+        make_a_deterministic_interruption(env.agents[1], max_steps)
+        
+        """if training_flag == 'training0' and not deterministic_interruption_activation or example_training == 'one_rail':
             choose_a_random_training_configuration(env, max_steps)
         if training_flag == 'training1':
             make_a_deterministic_interruption(env.agents[2], max_steps)
             make_a_deterministic_interruption(env.agents[3], max_steps)
         if training_flag == 'training1.1':
-            make_a_deterministic_interruption(env.agents[2], max_steps)
+            make_a_deterministic_interruption(env.agents[2], max_steps)"""
 
         # policy.start_step ---------------------------------------------------------------------------------------
         policy_start_step_timer.start()
@@ -565,8 +588,11 @@ for episode_idx in range(n_episodes + 1):
         #       - each row of the matrix is a train
         #       - each column represent the action the train has to do at each time instant
         for a in range(env.get_num_agents()):
+            
             if env.agents[a].state == TrainState.MALFUNCTION:
                 interruption = True
+                
+            """
             if not multi_agent and interruption: # debug 
                 break
             if step >= timetable[a][1][0]:
@@ -577,36 +603,42 @@ for episode_idx in range(n_episodes + 1):
                 # Interruption
                 if interruption or reinforcemente_learning:
                     if multi_agent:
-                        # If an agent has reached a station choose the action STOP
-                        if env.agents[a].position in env.station_positions and env.stop_station_time[a] > 0 \
-                                and step > env.agents[a].earliest_departure + 2:
-                            action = RailEnvActions.STOP_MOVING
-                            env.stop_station_time[a] -= 1
-                            
-                        elif info['action_required'][a]:
-                            update_values[a] = True
-                            action = policy.act(a, agent_obs[a], eps=eps_start)
-                            action_count[action] += 1
-                            actions_taken.append(action)
-                        else:
-                            # An action is not required if the train hasn't joined the railway network,
-                            # if it already reached its target, or if is currently malfunctioning.
-                            update_values[a] = False
-                            action = 0
+                        # If an agent has reached a station choose the action STOP"""
                         
-                        # Restart the stop_timer
-                        if env.stop_station_time[a] == 0:
-                            if counter_station >= 4:
-                                env.stop_station_time[a] = 2  # station.min_waiting_time # For now the timer is defaulted
-                                counter_station = 0
-                            counter_station += 1
-                    else:
+            if env.agents[a].state == TrainState.MALFUNCTION:
+                action = 0
+                action_dict.update({a: action})
+                break
+            if env.agents[a].position in env.station_positions and env.stop_station_time[a] > 0 \
+                    and step > env.agents[a].earliest_departure + 2:
+                # AGGIUNGERE CONTROLLI SUGLI ORARI ARRIVO - PARTENZA
+                action = RailEnvActions.STOP_MOVING
+                env.stop_station_time[a] -= 1                 
+            else:
+                update_values[a] = True
+                action = policy.act(a, agent_obs[a], eps=eps_start)
+                action_count[action] += 1
+                actions_taken.append(action)
+                """ else:
+                # An action is not required if the train hasn't joined the railway network,
+                # if it already reached its target, or if is currently malfunctioning.
+                update_values[a] = False
+                action = 0        """
+            # Restart the stop_timer
+            if env.stop_station_time[a] == 0:
+                if counter_station >= 4:
+                    env.stop_station_time[a] = 2  # station.min_waiting_time # For now the timer is defaulted
+                    counter_station = 0
+                    env.reverse_once = True
+                counter_station += 1
+                
+            """else:
                         action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
                         RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
                 # choose random from all the possible actions
                 else:
                     action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
-                        RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
+                    RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])"""
 
             action_dict.update({a: action})
 
@@ -628,7 +660,6 @@ for episode_idx in range(n_episodes + 1):
         
         # policy.shape_reward -------------------------------------------------------------------------------------
         policy_shape_reward_timer.start()
-        deadlocked_agents, all_rewards, = find_and_punish_deadlock(env, all_rewards, 0)
 
         # The might requires a policy based transformation
         for agent_handle in env.get_agent_handles():
@@ -636,8 +667,7 @@ for episode_idx in range(n_episodes + 1):
                                                             action_dict[agent_handle],
                                                             agent_obs[agent_handle],
                                                             all_rewards[agent_handle],
-                                                            done[agent_handle],
-                                                            deadlocked_agents[agent_handle])
+                                                            done[agent_handle])
         policy_shape_reward_timer.end()
         
         # Render an episode at some interval
@@ -658,31 +688,35 @@ for episode_idx in range(n_episodes + 1):
                             agent_prev_action[agent_handle],
                             all_rewards[agent_handle],
                             agent_obs[agent_handle],
-                            done[agent_handle] or (deadlocked_agents[agent_handle] > 0))
+                            done[agent_handle])
                     policy_step_timer.end()
                     
                     agent_prev_obs[agent] = agent_obs[agent].copy()
                     agent_prev_action[agent] = action_dict[agent]
                 score += all_rewards[agent]
                 # Preprocess the new observations
-                if tree_observer:
+                agent_obs[agent] = normalize_observation(next_obs[agent], observation_tree_depth, observation_radius=observation_radius)
+                """if tree_observer:
                     agent_obs[agent] = normalize_observation(obs[agent], observation_tree_depth, observation_radius=observation_radius)
                 else:
-                    agent_obs[agent] = normalize_global_observation(obs[agent])
+                    agent_obs[agent] = normalize_global_observation(obs[agent])"""
 
             nb_steps = step
         else:
             for a in range(env.get_num_agents()):
                 controller.step((obs[a], action_dict[a], all_rewards[a], next_obs[a], done[a]))
                 score += all_rewards[a]
-        obs = next_obs.copy()
+                
         if done['__all__']:
             break
         #break if the first agent has done
-        if ((training_flag == 'training0') and (done[0] == True)) or \
-            ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
-            ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
+        
+        # Exit from the simulation if the first agent has ended
+        if done[0]:
             break
+        
+        """if check_conflicts(env):
+            break"""
        
     # policy.end_episode
     policy_end_episode_timer.start()
@@ -698,10 +732,10 @@ for episode_idx in range(n_episodes + 1):
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
     # metric near to 1 is great result
-    for agent_handle in env.get_agent_handles():
+    for agent_handle in range(1):   # 1 is the interrupting agent...we don't consider it
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
-    metric = metric/len(env.get_agent_handles())
+    metric = metric/1               # TODO generalizza
     
     
     if episode_idx <= plateau_window - 1:
@@ -723,9 +757,7 @@ for episode_idx in range(n_episodes + 1):
 
         # Collect information about training
         tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
-        tasks_deadlocked = sum(deadlocked_agents[idx] for idx in env.get_agent_handles())
         completion = tasks_finished / max(1, env.get_num_agents())
-        deadlocked = tasks_deadlocked / max(1, env.get_num_agents())
         normalized_score = score / (max_steps * env.get_num_agents())
         action_probs = action_count / np.sum(action_count)
         action_count = [1] * action_size
@@ -786,7 +818,7 @@ for episode_idx in range(n_episodes + 1):
     writer.flush()
      
     if episode_idx % 50 == 0 and episode_idx != 0:
-        evaluate_policy()
+        evaluate_policy(env, env_renderer, next_obs, policy, training_params, obs_params)
    
     
 #animation = display_episode(frames)
@@ -879,76 +911,3 @@ for test_episode in range(num_of_tests + 1):
 
 animation = display_episode(frames)
 plt.show()
-
-
-
-"""#################
-##### TEST 1 ####
-#################
-# Reset environment and get initial observations for all agents
-env.reset()
-# Reset the rendering system
-env_renderer.reset()
-# Change the position of the interrupted agents
-if example_training == 'training0': 
-    env.agents[1].initial_position = (6,10)
-    env.agents[2].initial_position = (5,10)
-else:
-    env.agents[1].initial_position = (5,10)
-
-frame_step = 0
-frames = []
-score = 0
-
-for step in range(max_steps):
-    # Broken agents
-    if example_training == 'training0': 
-        make_a_deterministic_interruption(env.agents[1], max_steps)
-        make_a_deterministic_interruption(env.agents[2], max_steps)
-    else:
-        make_a_deterministic_interruption(env.agents[1], max_steps)
-    update_values[0] = True
-    action = policy.act(agent_obs[0], eps = 0.01)
-
-    action_count[action] += 1
-    actions_taken.append(action)
-    action_dict.update({0: action})
-    
-    next_obs, all_rewards, done, info = env.step(action_dict)
-    
-    score += all_rewards[0]
-
-    frame = env_renderer.render_env(show=False, show_observations=False, show_inactive_agents=False, show_predictions=False, return_image=True)
-    frames.append(frame)
-    frame_step += 1
-    
-    if done['__all__']:
-        break
-    #break if the first agent has done
-    if ((training_flag == 'training0') and (done[0] == True)) or \
-        ((training_flag == 'training1') and (done[0] == True) and (done[1] == True)) or \
-        ((training_flag == 'training1.1') and (done[0] == True) and (done[1] == True)):
-        break
-
-    if check_conflicts(env):
-        break
-    
-# metric most possible near to 0
-metric = calculate_metric(env, timetable)
-
-tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
-
-print()
-print(  'Test 1 concluded:'
-        '\t 🏆 Score: {:.3f}'
-        '\t Agent completed {}'
-        '\t Metric {}'.format(
-            score,
-            tasks_finished,
-            metric
-        ), end=" ")
-
-
-animation = display_episode(frames)
-plt.show()
-"""
