@@ -9,6 +9,8 @@ class RailEnvActions(IntEnum):
     MOVE_RIGHT = 3
     STOP_MOVING = 4
     REVERSE = 5
+    ACCELERATE = 6
+    DECELERATE = 7
 
     @staticmethod
     def to_char(a: int):
@@ -19,6 +21,8 @@ class RailEnvActions(IntEnum):
             3: 'R',
             4: 'S',
             5: 'I',
+            6: 'A',
+            7: 'D',
         }[a]
 
     @classmethod
@@ -27,6 +31,9 @@ class RailEnvActions(IntEnum):
 
     def is_moving_action(self):
         return self.value in [self.MOVE_RIGHT, self.MOVE_LEFT, self.MOVE_FORWARD, self.REVERSE]
+    
+    def is_action_speed(self):
+        return self.value in [self.ACCELERATE, self.DECELERATE]
 
 
 RailEnvGridPos = NamedTuple('RailEnvGridPos', [('r', int), ('c', int)])

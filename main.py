@@ -18,7 +18,7 @@ from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env import RailEnvActions
 # Import the railway generators   
 from flatland.envs.custom_rail_generator import rail_custom_generator
-from flatland.envs.rail_env_utils import delay_a_train, make_a_deterministic_interruption
+from flatland.envs.rail_env_utils import delay_a_train, make_interruption
 from flatland.utils.rendertools import RenderTool, AgentRenderVariant
 # Import the schedule generators
 from flatland.envs.custom_schedule_generator import custom_schedule_generator
@@ -48,7 +48,7 @@ n_episodes = 15000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.9999
-max_steps = 200           # 1440 one day
+max_steps = 500          # 1440 one day
 checkpoint_interval = 100
 
 mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
@@ -77,8 +77,6 @@ render = False
 ######### FLAGS ##########
 # Flag for the first training
 training_flag = example_training
-# Flag active in case of interruptions
-interruption = False
 # Flag to select the agent ----> multi agent or external controller
 multi_agent = True
 # Flag to save the video or not
@@ -107,33 +105,6 @@ def check_conflicts(env):
     for a in range(len(env.agents)):
         if env.agents[a].state_machine.st_signals.movement_conflict == True:
             return True
-
-def choose_a_random_training_configuration(env, max_steps):
-    if example_training == 'training0':
-        case = 0
-        if case == 0:
-            env.agents[1].initial_position = (6,10)
-            make_a_deterministic_interruption(env.agents[1], max_steps)
-            return    
-        elif case == 1:
-            env.agents[1].initial_position = (6,15)
-            env.agents[2].initial_position = (5,15)
-            make_a_deterministic_interruption(env.agents[1], max_steps)
-            make_a_deterministic_interruption(env.agents[2], max_steps)
-            return
-        elif case == 2:
-            env.agents[1].initial_position = (6,8)
-            make_a_deterministic_interruption(env.agents[1], max_steps)
-            env.agents[2].malfunction_handler.malfunction_down_counter = max_steps
-            return       
-        elif case == 3:
-            env.agents[1].malfunction_handler.malfunction_down_counter = max_steps
-            env.agents[2].initial_position = (5,15)
-            make_a_deterministic_interruption(env.agents[2], max_steps)
-            return
-    else:
-        env.agents[1].initial_position = (5,8)
-        make_a_deterministic_interruption(env.agents[1], max_steps)
         
 
 def format_action_prob(action_probs):
@@ -201,8 +172,9 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         
         for step in range(max_steps):
             
-            env.agents[1].initial_position = (6,7)
-            make_a_deterministic_interruption(env.agents[1], max_steps)
+            """make_interruption((6,7), env)
+            environment.interruption = True"""
+             
             
             if video_save:
                 # Check if this work with multiple tests in the same for loop
@@ -493,9 +465,9 @@ frames = []
 score_mean = [0] * plateau_window
 
 
-policy.load("checkpoints/policy_trained/700.pth")
-policy.load_replay_buffer("replay_buffers/policy_trained/700.pkl")
-policy.test()
+"""policy.load("checkpoints/policy_trained/200.pth")
+policy.load_replay_buffer("replay_buffers/policy_trained/200.pkl")
+policy.test()"""
 
 
 os.makedirs("output/frames", exist_ok=True)
@@ -524,7 +496,7 @@ for episode_idx in range(n_episodes + 1):
     reset_timer.end()
     for idx in range(env.get_num_agents()):
         tmp_agent = env.agents[idx]
-        tmp_agent.speed_counter.speed = 1 / (idx + 1)  # TODO rigestisci le velocità iniziali
+        tmp_agent.speed_counter.speed = 1 / 10  # TODO rigestisci le velocità iniziali
     env_renderer.reset()
     policy.reset(env)
     reset_timer.end()
@@ -559,20 +531,12 @@ for episode_idx in range(n_episodes + 1):
     for step in range(max_steps - 1):
         if video_save:
             env_renderer.gl.save_image("output/frames/flatland_frame_step_{:04d}.bmp".format(step))
-
+            
     # Here define the actions to do
         # Broken agents
         # INTERRUPTION --------------------------------------------------------------------------------------------
-        env.agents[1].initial_position = (6,7)
-        make_a_deterministic_interruption(env.agents[1], max_steps)
-        
-        """if training_flag == 'training0' and not deterministic_interruption_activation or example_training == 'one_rail':
-            choose_a_random_training_configuration(env, max_steps)
-        if training_flag == 'training1':
-            make_a_deterministic_interruption(env.agents[2], max_steps)
-            make_a_deterministic_interruption(env.agents[3], max_steps)
-        if training_flag == 'training1.1':
-            make_a_deterministic_interruption(env.agents[2], max_steps)"""
+        """make_interruption((6,7), env)
+        env.interruption = True"""
 
         # policy.start_step ---------------------------------------------------------------------------------------
         policy_start_step_timer.start()
@@ -588,27 +552,12 @@ for episode_idx in range(n_episodes + 1):
         #       - each row of the matrix is a train
         #       - each column represent the action the train has to do at each time instant
         for a in range(env.get_num_agents()):
-            
-            if env.agents[a].state == TrainState.MALFUNCTION:
-                interruption = True
-                
-            """
-            if not multi_agent and interruption: # debug 
-                break
-            if step >= timetable[a][1][0]:
-                # Normal plan to follow
-                if not interruption and (step - timetable[a][1][0]) < len(actions_scheduled[a]):
-                    if not reinforcemente_learning:
-                        action = actions_scheduled[a][step - timetable[a][1][0]]
-                # Interruption
-                if interruption or reinforcemente_learning:
-                    if multi_agent:
-                        # If an agent has reached a station choose the action STOP"""
-                        
+            # An action is not required if the train hasn't joined the railway network,
+            # if it already reached its target, or if is currently malfunctioning.    
             if env.agents[a].state == TrainState.MALFUNCTION:
                 action = 0
                 action_dict.update({a: action})
-                break
+                continue
             if env.agents[a].position in env.station_positions and env.stop_station_time[a] > 0 \
                     and step > env.agents[a].earliest_departure + 2:
                 # AGGIUNGERE CONTROLLI SUGLI ORARI ARRIVO - PARTENZA
@@ -631,14 +580,6 @@ for episode_idx in range(n_episodes + 1):
                     counter_station = 0
                     env.reverse_once = True
                 counter_station += 1
-                
-            """else:
-                        action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
-                        RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])
-                # choose random from all the possible actions
-                else:
-                    action = np.random.choice([RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_RIGHT, RailEnvActions.MOVE_LEFT, 
-                    RailEnvActions.STOP_MOVING, RailEnvActions.REVERSE])"""
 
             action_dict.update({a: action})
 
@@ -810,11 +751,12 @@ for episode_idx in range(n_episodes + 1):
 
     interruption = False
     
-    writer.add_scalar("Reward", score, episode_idx)
+    writer.add_scalar("Dense Reward", env.dense_score, episode_idx)
+    writer.add_scalar("Sparse Reward", env.sparse_score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
     #writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
     #writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
-    writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
+    #writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
     writer.flush()
      
     if episode_idx % 50 == 0 and episode_idx != 0:

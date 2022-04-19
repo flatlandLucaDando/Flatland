@@ -369,7 +369,7 @@ def calculate_timetable(convoys, railway_topology):
                         time_array.append(pow(min(train_velocity, 1/2), -1))
                 time_needed = sum(time_array)
                 # Adding to the time a 10% to face with problems in case it's neaded
-                time_needed = time_needed + int(time_needed/10)
+                time_needed = time_needed + int(time_needed/100*20)
 
                 # Adding the precedence time 
                 if stations != (num_of_stations - 1):

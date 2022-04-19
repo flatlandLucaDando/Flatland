@@ -651,7 +651,9 @@ class PILSVG(PILGL):
                 self.text_rowcol((row + 0.2, col + 0.2,), str(agent_idx))
         if malfunction:
             self.draw_malfunction(agent_idx, (row, col))
-
+        
+            
+        
     def set_cell_occupied(self, agent_idx, row, col):
         occupied_im = self.cell_occupied[agent_idx % len(self.cell_occupied)]
         self.draw_image_row_col(occupied_im, (row, col), 1)

@@ -57,5 +57,4 @@ def preprocess_moving_action(action, rail, position, direction):
     if action in [RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
         action = process_left_right(action, rail, position, direction)
 
-
     return action

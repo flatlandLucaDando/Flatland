@@ -23,7 +23,10 @@ class ActionSaver:
         if action == RailEnvActions.REVERSE:
             self.saved_action = action
 
-        if action.is_moving_action() and not self.is_action_saved and not state == TrainState.DONE:
+        if action.is_moving_action() and not state == TrainState.DONE: #and not self.is_action_saved and not state == TrainState.DONE:
+            self.saved_action = action
+            
+        if action.is_action_speed():
             self.saved_action = action
 
     def clear_saved_action(self):

@@ -24,13 +24,13 @@ class Convoy:
 		self.schedule = []
 
 		if train_type == Type_of_convoy.HIGH_VELOCITY:
-			self.maximum_velocity = 1
+			self.maximum_velocity = 1/10
 			self.importance = 1
 		if train_type == Type_of_convoy.INTERCITY:
-			self.maximum_velocity = 1/2
+			self.maximum_velocity = 1/15
 			self.importance = 0.75
 		if train_type == Type_of_convoy.REGIONAL:
-			self.maximum_velocity = 1/3
+			self.maximum_velocity = 1/20
 			self.importance = 0.5
 
 	def add_train_run(self, train_run):
@@ -52,15 +52,15 @@ class Convoy:
 			if row_num >  1:
 				for num_of_runs in range(num_trains_run - 1):
 					for steps in range(len(schedule) - 1):
-						if schedule[num_of_runs][step + 1] <= schedule[num_of_runs][step]:
+						if schedule[num_of_runs][steps + 1] <= schedule[num_of_runs][steps]:
 							print('==========================================================')
-							print('The time to connect stations',step,'and',step + 1,'have to be > 0')
+							print('The time to connect stations',steps,'and',steps + 1,'have to be > 0')
 
 			else:
 				for steps in range(len(schedule) - 1):
-					if schedule[num_of_runs][step + 1] <= schedule[num_of_runs][step]:
+					if schedule[num_of_runs][steps + 1] <= schedule[num_of_runs][steps]:
 						print('==========================================================')
-						print('The time to connect stations',step,'and',step + 1,'have to be > 0')
+						print('The time to connect stations',steps,'and',steps + 1,'have to be > 0')
 		else:
 			print('A schedule should comprend different stations')
 		return True

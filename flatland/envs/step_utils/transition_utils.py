@@ -1,9 +1,8 @@
 from typing import Tuple
 from flatland.core.grid.grid4_utils import get_new_position
+from flatland.envs.fast_methods import fast_argmax, fast_count_nonzero
 from flatland.envs.rail_env_action import RailEnvActions
-#from main import interruption
 
-interruption = True
 
 def check_action(action, position, direction, rail):
     """
@@ -16,14 +15,12 @@ def check_action(action, position, direction, rail):
     Returns
     -------
     Tuple[Grid4TransitionsEnum,Tuple[int,int]]
-
-
-
+    
     """
     transition_valid = None
     possible_transitions = rail.get_transitions(*position, direction)
     num_transitions = fast_count_nonzero(possible_transitions)
-	
+
     new_direction = direction
     if action == RailEnvActions.MOVE_LEFT:
         new_direction = direction - 1
@@ -35,12 +32,6 @@ def check_action(action, position, direction, rail):
         if num_transitions <= 1:
             transition_valid = False
 
-    elif action == RailEnvActions.REVERSE and interruption:
-        # Reverse active only if interruption in the railway
-        new_direction =  direction + 2
-        transition_valid = True
-
-
     new_direction %= 4  # Dipam : Why?
 
     if action == RailEnvActions.MOVE_FORWARD and num_transitions == 1:
@@ -49,9 +40,20 @@ def check_action(action, position, direction, rail):
         # - take only available transition
         new_direction = fast_argmax(possible_transitions)
         transition_valid = True
-
     return new_direction, transition_valid
 
+
+
+def check_reverse_action(direction, interrutpion_flag):
+    # Reverse active only if interruption in the railway
+    new_direction =  direction + 2
+    if interrutpion_flag:
+        transition_valid = True
+    else:
+        transition_valid = False    
+        
+    new_direction %= 4
+    return new_direction, transition_valid
 
 def check_action_on_agent(action, rail, position, direction):
     """
@@ -90,18 +92,6 @@ def check_valid_action(action, rail, position, direction):
 	action_is_valid = new_cell_valid and transition_valid
 	return action_is_valid
 
-def fast_argmax(possible_transitions: Tuple[int, int, int, int]) -> bool:
-    if possible_transitions[0] == 1:
-        return 0
-    if possible_transitions[1] == 1:
-        return 1
-    if possible_transitions[2] == 1:
-        return 2
-    return 3
-
-def fast_count_nonzero(possible_transitions: Tuple[int, int, int, int]):
-    return possible_transitions[0] + possible_transitions[1] + possible_transitions[2] + possible_transitions[3]
 
 def check_bounds(position, height, width):
     return position[0] >= 0 and position[1] >= 0 and position[0] < height and position[1] < width
- 

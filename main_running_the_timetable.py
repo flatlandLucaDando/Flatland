@@ -157,6 +157,16 @@ actions_scheduled[4][36] = RailEnvActions.MOVE_FORWARD
 actions_scheduled[4][37] = RailEnvActions.MOVE_FORWARD
 actions_scheduled[4][38] = RailEnvActions.STOP_MOVING
 actions_scheduled[4][39] = RailEnvActions.STOP_MOVING"""
+actions_scheduled[2][68] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][24] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][25] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][86] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][87] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][88] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[3][89] = RailEnvActions.MOVE_FORWARD
+actions_scheduled[5][48] = RailEnvActions.MOVE_FORWARD
+for i in range(5):
+    actions_scheduled[5][35+i] = RailEnvActions.MOVE_RIGHT
 
 # DEBUG
 if debug:
@@ -166,25 +176,6 @@ if debug:
         print()
 
     time.sleep(3)
-
-if multi_agent and tree_observer:
-
-    observation_parameters = Namespace(**obs_params)
-
-    observation_tree_depth = observation_parameters.observation_tree_depth
-    observation_radius = observation_parameters.observation_radius
-    observation_max_path_depth = observation_parameters.observation_max_path_depth
-
-    # Observation builder
-    predictor = ShortestPathPredictorForRailEnv(observation_max_path_depth)
-    Observer = TreeTimetableObservation(max_depth=observation_tree_depth, predictor=predictor)
-elif multi_agent:
-    Observer = GlobalObsModifiedRailEnv()
-else:
-    Observer = GlobalObsForRailEnv()
-    # Ricordarsi che noi vogliamo applicare il RL solo in un intorno della linea dove c'è stata l'interruzione
-    # Vogliamo in questo caso un osservatore globale? Forsse meglio valutarne anche uno limitato
-    # Ragiona se costruire un osservatore che consideri solo i binari possa essere tanto vantaggioso o no?
 
 stochastic_data = MalfunctionParameters(
     malfunction_rate = 0,  # Rate of malfunction occurence
@@ -200,7 +191,6 @@ env = RailEnv(  width= widht,
                 line_generator=schedule_generator_custom,
                 number_of_agents= num_of_agents,
                 malfunction_generator = malfunction_generator,
-                obs_builder_object=Observer,
                 remove_agents_at_target=True,
                 record_steps=True,
                 max_episode_steps = max_steps - 1
@@ -225,70 +215,7 @@ env_renderer = RenderTool(env,
 
 # This thing is importand for the RL part, initialize the agent with (state, action) dimension
 # Initialize the agent with the parameters corresponding to the environment and observation_builder
-if multi_agent:
-    if tree_observer:
-        n_features_per_node = env.obs_builder.observation_dim
-        n_nodes = sum([np.power(4, i) for i in range(observation_tree_depth + 1)])
-        state_size = n_features_per_node * n_nodes
-    else:
-        observation = env.obs_builder.get()
-        state_size = observation.size
-        
-    n_agents = env.get_num_agents()
-    action_size = env.action_space[0]
 
-    action_count = [0] * action_size
-    action_dict = dict()
-    agent_obs = [None] * n_agents
-    agent_prev_obs = [None] * n_agents
-    agent_prev_action = [2] * n_agents
-    update_values = [False] * n_agents
-
-    controller = RandomAgent(state_size, action_size)
-
-    # Smoothed values used as target for hyperparameter tuning
-    smoothed_normalized_score = -1.0
-    smoothed_eval_normalized_score = -1.0
-    smoothed_completion = 0.0
-    smoothed_eval_completion = 0.0
-
-    train_params = training_params
-
-    policy = DDDQNPolicy(state_size, action_size, train_params)
-
-    # TensorBoard writer
-    writer = SummaryWriter()
-    writer.add_hparams(hparam_dict = {'Number of episodes': n_episodes, 'Starting epsilon': eps_start, 'Ending epsilon': eps_end , 'Epsilon decay': eps_decay,
-                                      'Max steps': max_steps, 'Checkpoint interval': checkpoint_interval, 'Training id': training_id, 'Render': False}, metric_dict={})
-    writer.flush()
-    training_timer = Timer()
-    training_timer.start()
-
-else:
-    n_agents = env.get_num_agents()
-    state_size = (widht * height)
-    # The number of actions is the combination of the number of actions by the number of agents
-    action_size = env.action_space[0] ** env.get_num_agents()
-
-    action_count = [0] * action_size
-    action_dict = dict()
-    agent_obs = [None] * n_agents
-    agent_prev_obs = [None] * n_agents
-    agent_prev_action = [2] * n_agents
-    update_values = [False] * n_agents
-
-    controller = RandomAgent(state_size, action_size)
-
-    q_table = np.zeros([state_size, action_size])
-
-
-    alpha = 0.1
-    gamma = 0.6
-    epsilon = 0.1
-
-    # For plotting metrics
-    all_epochs = []
-    all_penalties = []
 
 
 # Lets try to enter with all of these agents at the same time
@@ -299,10 +226,6 @@ action_dict = dict()
 # Therefore the environment provides information about what agents need to provide an action in the next step.
 # You can access this in the following way.
 
-# Chose an action for each agent
-for a in range(env.get_num_agents()):
-    action = controller.act(0)
-    action_dict.update({a: action})
 # Do the environment step
 
 observations, rewards, done, information = env.step(action_dict)
@@ -344,9 +267,12 @@ os.makedirs("output/pippo", exist_ok=True)
 
 for episode_idx in range(n_episodes + 1):
     
+    env.agents[5].initial_position = (7,13)
+    env.agents[1].initial_position = (13, 48)
+    
     deterministic_interruption_activation = False
     
-    if train_params.render:
+    if render:
         env_renderer.set_new_rail()
 
     # Run episode (one day long, 1 step is 1 minute) 1440
@@ -358,6 +284,8 @@ for episode_idx in range(n_episodes + 1):
         #       - each row of the matrix is a train
         #       - each column represent the action the train has to do at each time instant
         for a in range(env.get_num_agents()):
+            
+            action = 0
             
             if env.agents[a].state == TrainState.DONE:
                 done[a] = True

@@ -280,8 +280,7 @@ class RenderLocal(RenderBase):
                 target_row_col = array(target[i])
                 target_xy = np.matmul(target_row_col, rt.row_col_to_xy) + rt.x_y_half
                 self._draw_square(target_xy, 1 / 3, color, layer=1)    # Check what doeas the 1/3
-     
-            
+    
     def plot_single_agent_old(self, position_row_col, direction, color="r", target=None, static=False, selected=False):
         """
         Plot a simple agent.
@@ -538,6 +537,15 @@ class RenderLocal(RenderBase):
                                 array([from_xy, to_xy]), center_xy,
                                 rotation, dead_end=is_dead_end, curves=curves and not is_dead_end, spacing=spacing,
                                 color=rail_color)
+                            
+    def render_interruption(self, cell):
+        grcOffsets = np.array([[0, 0], [1, 1], [1, 0], [0, 1]])
+        grcPoints = np.array(cell)[None] + grcOffsets
+        gxyPoints = grcPoints[:, [1, 0]]
+        gxPoints, gyPoints = gxyPoints.T
+        # print(agent_idx, rcTopLeft, gxyPoints, "X:", gxPoints, "Y:", gyPoints)
+        # plot(self, gX, gY, color=None, linewidth=3, layer=RAIL_LAYER, opacity=255, **kwargs):
+        self.gl.plot(gxPoints, -gyPoints, color=(0, 0, 0, 255), layer=PILGL.AGENT_LAYER, linewidth=2)
 
     def render_env(self,
                    show=False,  # whether to call matplotlib show() or equivalent after completion
@@ -717,7 +725,9 @@ class RenderLocal(RenderBase):
                 for iCol in range(env.width):
                     self.gl.text_rowcol((0, iCol), str(iCol), layer=self.gl.RAIL_LAYER)
 
-
+        if self.env.cell_interrupted != []:
+            self.render_interruption(self.env.cell_interrupted[0])
+        
         if show_agents:
             for agent_idx, agent in enumerate(self.env.agents):
 

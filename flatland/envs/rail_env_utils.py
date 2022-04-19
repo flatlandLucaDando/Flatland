@@ -87,3 +87,6 @@ def make_a_deterministic_interruption(agent_to_interrupt, interruption_time):
     if agent_to_interrupt.state.is_on_map_state():
         agent_to_interrupt.malfunction_handler.malfunction_down_counter = interruption_time
 
+def make_interruption(cell_position, env):
+    env.cell_interrupted.append(cell_position)
+    return

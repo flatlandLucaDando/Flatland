@@ -32,20 +32,19 @@ Node = collections.namedtuple('Node', 'dist_own_target_encountered '
                                         'num_agents_ready_to_depart '
                                         'childs')
 
-NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '     # MODIFICARE non mi interessa se doppio binario senso opposto (non crea conflitti)
-                                        'dist_potential_conflict '          # CONTROLLARE CHE IL CONFLITTO SIA CALCOLATO BENE
-                                        'dist_unusable_switch '             # COME SOPRA
+NodeNew = collections.namedtuple('Node','dist_other_agent_encountered '     
+                                        'dist_potential_conflict '          
+                                        'dist_unusable_switch '             
                                         'dist_to_next_branch '
                                         'num_agents_same_direction '
                                         'num_agents_opposite_direction '   
                                         'num_agents_malfunctioning '
                                         'speed_min_fractional '
                                         'num_agents_ready_to_depart '
-                                        'dist_own_stations '        # dist_own_stations
-                                        'own_stations_index '            # own_stations_index
+                                        'dist_own_stations '        
+                                        'own_stations_index '            
                                         'time_own_station '
-                                        'dist_other_station_encountered '    # dist_other_station_encountered
-                                        'time_other_station_encountered '    # time_other_station_encountered
+                                        'real_time_station_capacity '    
                                         'childs')
 
 
@@ -113,19 +112,19 @@ class TreeObsForRailEnv(ObservationBuilder):
         for _agent in self.env.agents:
             if not _agent.state.is_off_map_state() and \
                 _agent.position:
-                self.location_has_agent[tuple(_agent.position)] = 1                
+                self.location_has_agent[tuple(_agent.position)] = 1
                 self.location_has_agent_direction[tuple(_agent.position)] = _agent.direction
                 self.location_has_agent_speed[tuple(_agent.position)] = _agent.speed_counter.speed
                 self.location_has_agent_malfunction[tuple(_agent.position)] = \
-                        _agent.malfunction_handler.malfunction_down_counter
+                    _agent.malfunction_handler.malfunction_down_counter
 
             # [NIMISH] WHAT IS THIS
             if _agent.state.is_off_map_state() and \
                 _agent.initial_position:
-                    self.location_has_agent_ready_to_depart.setdefault(tuple(_agent.initial_position), 0)
-                    self.location_has_agent_ready_to_depart[tuple(_agent.initial_position)] += 1
-                # self.location_has_agent_ready_to_depart[tuple(_agent.initial_position)] = \
-                #     self.location_has_agent_ready_to_depart.get(tuple(_agent.initial_position), 0) + 1
+                self.location_has_agent_ready_to_depart.setdefault(tuple(_agent.initial_position), 0)
+                self.location_has_agent_ready_to_depart[tuple(_agent.initial_position)] += 1
+            # self.location_has_agent_ready_to_depart[tuple(_agent.initial_position)] = \
+            #     self.location_has_agent_ready_to_depart.get(tuple(_agent.initial_position), 0) + 1
 
         observations = super().get_many(handles)
 
@@ -191,7 +190,7 @@ class TreeObsForRailEnv(ObservationBuilder):
             0 = no agent present other direction than myself
 
         #10:
-            malfunctioning/blocking agents
+            malfunctioning/blokcing agents
             n = number of time steps the oberved agent remains blocked
 
         #11:
@@ -224,24 +223,24 @@ class TreeObsForRailEnv(ObservationBuilder):
             return None
 
         possible_transitions = self.env.rail.get_transitions(*agent_virtual_position, agent.direction)
-        num_transitions = np.count_nonzero(possible_transitions)
+        num_transitions = fast_count_nonzero(possible_transitions)
 
         # Here information about the agent itself is stored
         distance_map = self.env.distance_map.get()
 
         # was referring to TreeObsForRailEnv.Node
         root_node_observation = Node(dist_own_target_encountered=0, dist_other_target_encountered=0,
-                                                       dist_other_agent_encountered=0, dist_potential_conflict=0,
-                                                       dist_unusable_switch=0, dist_to_next_branch=0,
-                                                       dist_min_to_target=distance_map[
-                                                           (handle, *agent_virtual_position,
-                                                            agent.direction)],
-                                                       num_agents_same_direction=0, num_agents_opposite_direction=0,
-                                                       num_agents_malfunctioning=agent.malfunction_handler.malfunction_down_counter,
-                                                       speed_min_fractional=agent.speed_counter.speed,
-                                                       num_agents_ready_to_depart=0,
-                                                       childs={})
-        #print("root node type:", type(root_node_observation))
+                                     dist_other_agent_encountered=0, dist_potential_conflict=0,
+                                     dist_unusable_switch=0, dist_to_next_branch=0,
+                                     dist_min_to_target=distance_map[
+                                         (handle, *agent_virtual_position,
+                                          agent.direction)],
+                                     num_agents_same_direction=0, num_agents_opposite_direction=0,
+                                     num_agents_malfunctioning=agent.malfunction_handler.malfunction_down_counter,
+                                     speed_min_fractional=agent.speed_counter.speed,
+                                     num_agents_ready_to_depart=0,
+                                     childs={})
+        # print("root node type:", type(root_node_observation))
 
         visited = OrderedSet()
 
@@ -251,9 +250,8 @@ class TreeObsForRailEnv(ObservationBuilder):
         orientation = agent.direction
 
         if num_transitions == 1:
-            orientation = np.argmax(possible_transitions)
+            orientation = fast_argmax(possible_transitions)
 
-        # TODO permettere sempre nel nodo la direzione backward...Far sì che il ramo backward esista sempre
         for i, branch_direction in enumerate([(orientation + i) % 4 for i in range(-1, 3)]):
 
             if possible_transitions[branch_direction]:
@@ -264,9 +262,6 @@ class TreeObsForRailEnv(ObservationBuilder):
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = branch_observation
 
                 visited |= branch_visited
-
-            # elif branch_direction == 3: allora creo il branch e esploro il branch
-
             else:
                 # add cells filled with infinity if no transition is possible
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = -np.inf
@@ -295,8 +290,11 @@ class TreeObsForRailEnv(ObservationBuilder):
         last_is_target = False
 
         visited = OrderedSet()
+
         agent = self.env.agents[handle]
-        time_per_cell = np.reciprocal(agent.speed_counter.speed)
+        distance_map_handle = self.env.distance_map.get()[handle]
+
+        time_per_cell = 1.0 / agent.speed_counter.speed
         own_target_encountered = np.inf
         other_agent_encountered = np.inf
         other_target_encountered = np.inf
@@ -313,7 +311,7 @@ class TreeObsForRailEnv(ObservationBuilder):
             # #############################
             # Modify here to compute any useful data required to build the end node's features. This code is called
             # for each cell visited between the previous branching node and the next switch / target / dead-end.
-            if position in self.location_has_agent:
+            if self.location_has_agent.get(position, 0) == 1:
                 if tot_dist < other_agent_encountered:
                     other_agent_encountered = tot_dist
 
@@ -340,7 +338,8 @@ class TreeObsForRailEnv(ObservationBuilder):
                 # Check number of possible transitions for agent and total number of transitions in cell (type)
             cell_transitions = self.env.rail.get_transitions(*position, direction)
             transition_bit = bin(self.env.rail.get_full_transitions(*position))
-            total_transitions = transition_bit.count("1")
+            total_transitions = fast_argmax(cell_transitions)
+
             crossing_found = False
             if int(transition_bit, 2) == int('1000010000100001', 2):
                 crossing_found = True
@@ -355,31 +354,29 @@ class TreeObsForRailEnv(ObservationBuilder):
                     post_step = min(self.max_prediction_depth - 1, predicted_time + 1)
 
                     # Look for conflicting paths at distance tot_dist
-                    if int_position in np.delete(self.predicted_pos[predicted_time], handle, 0):
-                        conflicting_agent = np.where(self.predicted_pos[predicted_time] == int_position)
-                        for ca in conflicting_agent[0]:
+                    if int_position in fast_delete(self.predicted_pos[predicted_time], handle):
+                        conflicting_agent = fast_where(self.predicted_pos[predicted_time] == int_position)
+                        for ca in conflicting_agent:
                             if direction != self.predicted_dir[predicted_time][ca] and cell_transitions[
                                 self._reverse_dir(
                                     self.predicted_dir[predicted_time][ca])] == 1 and tot_dist < potential_conflict:
                                 potential_conflict = tot_dist
                             if self.env.agents[ca].state == TrainState.DONE and tot_dist < potential_conflict:
                                 potential_conflict = tot_dist
-
                     # Look for conflicting paths at distance num_step-1
-                    elif int_position in np.delete(self.predicted_pos[pre_step], handle, 0):
-                        conflicting_agent = np.where(self.predicted_pos[pre_step] == int_position)
-                        for ca in conflicting_agent[0]:
+                    elif int_position in fast_delete(self.predicted_pos[pre_step], handle):
+                        conflicting_agent = fast_where(self.predicted_pos[pre_step] == int_position)
+                        for ca in conflicting_agent:
                             if direction != self.predicted_dir[pre_step][ca] \
                                 and cell_transitions[self._reverse_dir(self.predicted_dir[pre_step][ca])] == 1 \
                                 and tot_dist < potential_conflict:  # noqa: E125
                                 potential_conflict = tot_dist
                             if self.env.agents[ca].state == TrainState.DONE and tot_dist < potential_conflict:
                                 potential_conflict = tot_dist
-
                     # Look for conflicting paths at distance num_step+1
-                    elif int_position in np.delete(self.predicted_pos[post_step], handle, 0):
-                        conflicting_agent = np.where(self.predicted_pos[post_step] == int_position)
-                        for ca in conflicting_agent[0]:
+                    elif int_position in fast_delete(self.predicted_pos[post_step], handle):
+                        conflicting_agent = fast_where(self.predicted_pos[post_step] == int_position)
+                        for ca in conflicting_agent:
                             if direction != self.predicted_dir[post_step][ca] and cell_transitions[self._reverse_dir(
                                 self.predicted_dir[post_step][ca])] == 1 \
                                 and tot_dist < potential_conflict:  # noqa: E125
@@ -402,7 +399,7 @@ class TreeObsForRailEnv(ObservationBuilder):
             visited.add((position[0], position[1], direction))
 
             # If the target node is encountered, pick that as node. Also, no further branching is possible.
-            if np.array_equal(position, self.env.agents[handle].target):
+            if fast_position_equal(position, self.env.agents[handle].target):
                 last_is_target = True
                 break
 
@@ -410,7 +407,7 @@ class TreeObsForRailEnv(ObservationBuilder):
             if crossing_found:
                 # Treat the crossing as a straight rail cell
                 total_transitions = 2
-            num_transitions = np.count_nonzero(cell_transitions)
+            num_transitions = fast_count_nonzero(cell_transitions)
 
             exploring = False
 
@@ -429,7 +426,7 @@ class TreeObsForRailEnv(ObservationBuilder):
                     # Keep walking through the tree along `direction`
                     exploring = True
                     # convert one-hot encoding to 0,1,2,3
-                    direction = np.argmax(cell_transitions)
+                    direction = fast_argmax(cell_transitions)
                     position = get_new_position(position, direction)
                     num_steps += 1
                     tot_dist += 1
@@ -456,25 +453,25 @@ class TreeObsForRailEnv(ObservationBuilder):
             dist_min_to_target = 0
         elif last_is_terminal:
             dist_to_next_branch = np.inf
-            dist_min_to_target = self.env.distance_map.get()[handle, position[0], position[1], direction]
+            dist_min_to_target = distance_map_handle[position[0], position[1], direction]
         else:
             dist_to_next_branch = tot_dist
-            dist_min_to_target = self.env.distance_map.get()[handle, position[0], position[1], direction]
+            dist_min_to_target = distance_map_handle[position[0], position[1], direction]
 
         # TreeObsForRailEnv.Node
         node = Node(dist_own_target_encountered=own_target_encountered,
-                                      dist_other_target_encountered=other_target_encountered,
-                                      dist_other_agent_encountered=other_agent_encountered,
-                                      dist_potential_conflict=potential_conflict,
-                                      dist_unusable_switch=unusable_switch,
-                                      dist_to_next_branch=dist_to_next_branch,
-                                      dist_min_to_target=dist_min_to_target,
-                                      num_agents_same_direction=other_agent_same_direction,
-                                      num_agents_opposite_direction=other_agent_opposite_direction,
-                                      num_agents_malfunctioning=malfunctioning_agent,
-                                      speed_min_fractional=min_fractional_speed,
-                                      num_agents_ready_to_depart=other_agent_ready_to_depart_encountered,
-                                      childs={})
+                    dist_other_target_encountered=other_target_encountered,
+                    dist_other_agent_encountered=other_agent_encountered,
+                    dist_potential_conflict=potential_conflict,
+                    dist_unusable_switch=unusable_switch,
+                    dist_to_next_branch=dist_to_next_branch,
+                    dist_min_to_target=dist_min_to_target,
+                    num_agents_same_direction=other_agent_same_direction,
+                    num_agents_opposite_direction=other_agent_opposite_direction,
+                    num_agents_malfunctioning=malfunctioning_agent,
+                    speed_min_fractional=min_fractional_speed,
+                    num_agents_ready_to_depart=other_agent_ready_to_depart_encountered,
+                    childs={})
 
         # #############################
         # #############################
@@ -551,6 +548,228 @@ class TreeObsForRailEnv(ObservationBuilder):
 
     def _reverse_dir(self, direction):
         return int((direction + 2) % 4)
+
+
+class GlobalObsForRailEnv(ObservationBuilder):
+    """
+    Gives a global observation of the entire rail environment.
+    The observation is composed of the following elements:
+
+        - transition map array with dimensions (env.height, env.width, 16),\
+          assuming 16 bits encoding of transitions.
+
+        - obs_agents_state: A 3D array (map_height, map_width, 5) with
+            - first channel containing the agents position and direction
+            - second channel containing the other agents positions and direction
+            - third channel containing agent/other agent malfunctions
+            - fourth channel containing agent/other agent fractional speeds
+            - fifth channel containing number of other agents ready to depart
+
+        - obs_targets: Two 2D arrays (map_height, map_width, 2) containing respectively the position of the given agent\
+         target and the positions of the other agents targets (flag only, no counter!).
+    """
+
+    def __init__(self):
+        super(GlobalObsForRailEnv, self).__init__()
+
+    def set_env(self, env: Environment):
+        super().set_env(env)
+
+    def reset(self):
+        self.rail_obs = np.zeros((self.env.height, self.env.width, 16))
+        for i in range(self.rail_obs.shape[0]):
+            for j in range(self.rail_obs.shape[1]):
+                bitlist = [int(digit) for digit in bin(self.env.rail.get_full_transitions(i, j))[2:]]
+                bitlist = [0] * (16 - len(bitlist)) + bitlist
+                self.rail_obs[i, j] = np.array(bitlist)
+
+    def get(self, handle: int = 0) -> (np.ndarray, np.ndarray, np.ndarray):
+
+        agent = self.env.agents[handle]
+        if agent.state.is_off_map_state():
+            agent_virtual_position = agent.initial_position
+        elif agent.state.is_on_map_state():
+            agent_virtual_position = agent.position
+        elif agent.state == TrainState.DONE:
+            agent_virtual_position = agent.target
+        else:
+            return None
+
+        obs_targets = np.zeros((self.env.height, self.env.width, 2))
+        obs_agents_state = np.zeros((self.env.height, self.env.width, 5)) - 1
+
+        # TODO can we do this more elegantly?
+        # for r in range(self.env.height):
+        #     for c in range(self.env.width):
+        #         obs_agents_state[(r, c)][4] = 0
+        obs_agents_state[:, :, 4] = 0
+
+        obs_agents_state[agent_virtual_position][0] = agent.direction
+        obs_targets[agent.target][0] = 1
+
+        for i in range(len(self.env.agents)):
+            other_agent: EnvAgent = self.env.agents[i]
+
+            # ignore other agents not in the grid any more
+            if other_agent.state == TrainState.DONE:
+                continue
+
+            obs_targets[other_agent.target][1] = 1
+
+            # second to fourth channel only if in the grid
+            if other_agent.position is not None:
+                # second channel only for other agents
+                if i != handle:
+                    obs_agents_state[other_agent.position][1] = other_agent.direction
+                obs_agents_state[other_agent.position][2] = other_agent.malfunction_handler.malfunction_down_counter
+                obs_agents_state[other_agent.position][3] = other_agent.speed_counter.speed
+            # fifth channel: all ready to depart on this position
+            if other_agent.state.is_off_map_state():
+                obs_agents_state[other_agent.initial_position][4] += 1
+        return self.rail_obs, obs_agents_state, obs_targets
+
+
+class LocalObsForRailEnv(ObservationBuilder):
+    """
+    !!!!!!WARNING!!! THIS IS DEPRACTED AND NOT UPDATED TO FLATLAND 2.0!!!!!
+    Gives a local observation of the rail environment around the agent.
+    The observation is composed of the following elements:
+
+        - transition map array of the local environment around the given agent, \
+          with dimensions (view_height,2*view_width+1, 16), \
+          assuming 16 bits encoding of transitions.
+
+        - Two 2D arrays (view_height,2*view_width+1, 2) containing respectively, \
+        if they are in the agent's vision range, its target position, the positions of the other targets.
+
+        - A 2D array (view_height,2*view_width+1, 4) containing the one hot encoding of directions \
+          of the other agents at their position coordinates, if they are in the agent's vision range.
+
+        - A 4 elements array with one hot encoding of the direction.
+
+    Use the parameters view_width and view_height to define the rectangular view of the agent.
+    The center parameters moves the agent along the height axis of this rectangle. If it is 0 the agent only has
+    observation in front of it.
+
+    .. deprecated:: 2.0.0
+    """
+
+    def __init__(self, view_width, view_height, center):
+
+        super(LocalObsForRailEnv, self).__init__()
+        self.view_width = view_width
+        self.view_height = view_height
+        self.center = center
+        self.max_padding = max(self.view_width, self.view_height - self.center)
+
+    def reset(self):
+        # We build the transition map with a view_radius empty cells expansion on each side.
+        # This helps to collect the local transition map view when the agent is close to a border.
+        self.max_padding = max(self.view_width, self.view_height)
+        self.rail_obs = np.zeros((self.env.height,
+                                  self.env.width, 16))
+        for i in range(self.env.height):
+            for j in range(self.env.width):
+                bitlist = [int(digit) for digit in bin(self.env.rail.get_full_transitions(i, j))[2:]]
+                bitlist = [0] * (16 - len(bitlist)) + bitlist
+                self.rail_obs[i, j] = np.array(bitlist)
+
+    def get(self, handle: int = 0) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+        agents = self.env.agents
+        agent = agents[handle]
+
+        # Correct agents position for padding
+        # agent_rel_pos[0] = agent.position[0] + self.max_padding
+        # agent_rel_pos[1] = agent.position[1] + self.max_padding
+
+        # Collect visible cells as set to be plotted
+        visited, rel_coords = self.field_of_view(agent.position, agent.direction, )
+        local_rail_obs = None
+
+        # Add the visible cells to the observed cells
+        self.env.dev_obs_dict[handle] = set(visited)
+
+        # Locate observed agents and their coresponding targets
+        local_rail_obs = np.zeros((self.view_height, 2 * self.view_width + 1, 16))
+        obs_map_state = np.zeros((self.view_height, 2 * self.view_width + 1, 2))
+        obs_other_agents_state = np.zeros((self.view_height, 2 * self.view_width + 1, 4))
+        _idx = 0
+        for pos in visited:
+            curr_rel_coord = rel_coords[_idx]
+            local_rail_obs[curr_rel_coord[0], curr_rel_coord[1], :] = self.rail_obs[pos[0], pos[1], :]
+            if pos == agent.target:
+                obs_map_state[curr_rel_coord[0], curr_rel_coord[1], 0] = 1
+            else:
+                for tmp_agent in agents:
+                    if pos == tmp_agent.target:
+                        obs_map_state[curr_rel_coord[0], curr_rel_coord[1], 1] = 1
+            if pos != agent.position:
+                for tmp_agent in agents:
+                    if pos == tmp_agent.position:
+                        obs_other_agents_state[curr_rel_coord[0], curr_rel_coord[1], :] = np.identity(4)[
+                            tmp_agent.direction]
+
+            _idx += 1
+
+        direction = np.identity(4)[agent.direction]
+        return local_rail_obs, obs_map_state, obs_other_agents_state, direction
+
+    def get_many(self, handles: Optional[List[int]] = None) -> Dict[
+        int, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+        """
+        Called whenever an observation has to be computed for the `env` environment, for each agent with handle
+        in the `handles` list.
+        """
+
+        return super().get_many(handles)
+
+    def field_of_view(self, position, direction, state=None):
+        # Compute the local field of view for an agent in the environment
+        data_collection = False
+        if state is not None:
+            temp_visible_data = np.zeros(shape=(self.view_height, 2 * self.view_width + 1, 16))
+            data_collection = True
+        if direction == 0:
+            origin = (position[0] + self.center, position[1] - self.view_width)
+        elif direction == 1:
+            origin = (position[0] - self.view_width, position[1] - self.center)
+        elif direction == 2:
+            origin = (position[0] - self.center, position[1] + self.view_width)
+        else:
+            origin = (position[0] + self.view_width, position[1] + self.center)
+        visible = list()
+        rel_coords = list()
+        for h in range(self.view_height):
+            for w in range(2 * self.view_width + 1):
+                if direction == 0:
+                    if 0 <= origin[0] - h < self.env.height and 0 <= origin[1] + w < self.env.width:
+                        visible.append((origin[0] - h, origin[1] + w))
+                        rel_coords.append((h, w))
+                    # if data_collection:
+                    #    temp_visible_data[h, w, :] = state[origin[0] - h, origin[1] + w, :]
+                elif direction == 1:
+                    if 0 <= origin[0] + w < self.env.height and 0 <= origin[1] + h < self.env.width:
+                        visible.append((origin[0] + w, origin[1] + h))
+                        rel_coords.append((h, w))
+                    # if data_collection:
+                    #    temp_visible_data[h, w, :] = state[origin[0] + w, origin[1] + h, :]
+                elif direction == 2:
+                    if 0 <= origin[0] + h < self.env.height and 0 <= origin[1] - w < self.env.width:
+                        visible.append((origin[0] + h, origin[1] - w))
+                        rel_coords.append((h, w))
+                    # if data_collection:
+                    #    temp_visible_data[h, w, :] = state[origin[0] + h, origin[1] - w, :]
+                else:
+                    if 0 <= origin[0] - w < self.env.height and 0 <= origin[1] - h < self.env.width:
+                        visible.append((origin[0] - w, origin[1] - h))
+                        rel_coords.append((h, w))
+                    # if data_collection:
+                    #    temp_visible_data[h, w, :] = state[origin[0] - w, origin[1] - h, :]
+        if data_collection:
+            return temp_visible_data
+        else:
+            return visible, rel_coords
+
     
     
 
@@ -570,7 +789,7 @@ class TreeTimetableObservation(ObservationBuilder):
     def __init__(self, max_depth: int, predictor: PredictionBuilder = None):
         super().__init__()
         self.max_depth = max_depth
-        self.observation_dim = 14
+        self.observation_dim = 13
         self.location_has_agent = {}
         self.location_has_agent_direction = {}
         self.predictor = predictor
@@ -754,8 +973,7 @@ class TreeTimetableObservation(ObservationBuilder):
                                         dist_own_stations = 0,
                                         own_stations_index = 0,
                                         time_own_station = 0,
-                                        dist_other_station_encountered=0,
-                                        time_other_station_encountered=0,
+                                        real_time_station_capacity=0,
                                         childs={})
         #print("root node type:", type(root_node_observation))
 
@@ -779,12 +997,25 @@ class TreeTimetableObservation(ObservationBuilder):
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = branch_observation
 
                 visited |= branch_visited
-
-            # elif branch_direction == 3: allora creo il branch e esploro il branch
-
+            
             else:
                 # add cells filled with infinity if no transition is possible
                 root_node_observation.childs[self.tree_explored_actions_char[i]] = -np.inf
+
+            # ---------------------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------------------
+            # Se vuoi sistemare la REVERSE agisci qua
+            """elif i == 3: # allora creo il branch e esploro il branch
+                new_cell = get_new_position(agent_virtual_position, i)
+
+                branch_observation, branch_visited = \
+                    self._explore_branch(handle, new_cell, i, 1, 1)
+                root_node_observation.childs[self.tree_explored_actions_char[i]] = branch_observation
+
+                visited |= branch_visited"""
+                
+            
                 
         self.env.dev_obs_dict[handle] = visited
 
@@ -820,7 +1051,7 @@ class TreeTimetableObservation(ObservationBuilder):
         dist_other_station_encountered = np.inf
         own_stations_index = np.inf
         time_own_station = np.inf
-        time_other_station_encountered = np.inf
+        real_time_station_capacity = np.inf
         
         num_agents_same_direction = 0
         num_agents_opposite_direction = 0
@@ -835,6 +1066,8 @@ class TreeTimetableObservation(ObservationBuilder):
                 self.env.width, self.env.height, self.env.number_of_agents, self.env.num_resets, self.env.np_random)
         
         timetable = optionals['agents_hints']['timetable']
+        
+        agents_in_station = [0]*len(timetable[handle][0])
 
         while exploring:
             # #############################
@@ -874,6 +1107,9 @@ class TreeTimetableObservation(ObservationBuilder):
             if int(transition_bit, 2) == int('1000010000100001', 2):
                 crossing_found = True
 
+            if position in self.env.cell_interrupted:
+                num_agents_malfunctioning = 1
+            
             # Register possible future conflict
             predicted_time = int(tot_dist * time_per_cell)
             if self.predictor and predicted_time < self.max_prediction_depth:
@@ -933,11 +1169,12 @@ class TreeTimetableObservation(ObservationBuilder):
                             for i_station in range(len(timetable[handle][0])):
                                 time_now = self.env._elapsed_steps 
                                 if timetable[handle][0][i_station].position == position:
-                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    time_difference = abs(timetable[handle][1][i_station] - time_now)
                                     if min_time > time_difference:
                                         index_of_my_station = i_station
                             
-                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            time_difference = abs(timetable[handle][1][index_of_my_station] - time_now)
+                            time_own_station = time_difference       # save the time at which i have to reach it
                             dist_own_stations = tot_dist                      # save the distance from it
                             break
                     # TWO RAILS STATION
@@ -950,11 +1187,12 @@ class TreeTimetableObservation(ObservationBuilder):
                             for i_station in range(len(timetable[handle][0])):
                                 time_now = self.env._elapsed_steps 
                                 if timetable[handle][0][i_station].position == position:
-                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    time_difference = abs(timetable[handle][1][i_station] - time_now)
                                     if min_time > time_difference:
                                         index_of_my_station = i_station
                             
-                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            time_difference = abs(timetable[handle][1][index_of_my_station] - time_now)
+                            time_own_station = time_difference       # save the time at which i have to reach it
                             dist_own_stations = tot_dist                      # save the distance from it
                             break
             else:
@@ -969,11 +1207,12 @@ class TreeTimetableObservation(ObservationBuilder):
                             for i_station in range(len(timetable[handle][0])):
                                 time_now = self.env._elapsed_steps 
                                 if timetable[handle][0][i_station].position == position:
-                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    time_difference = abs(timetable[handle][1][i_station] - time_now)
                                     if min_time > time_difference:
                                         index_of_my_station = i_station
                             
-                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                            time_difference = abs(timetable[handle][1][index_of_my_station] - time_now)
+                            time_own_station = time_difference       # save the time at which i have to reach it
                             dist_own_stations = tot_dist                      # save the distance from it
                             break
                     # TWO RAILS STATION
@@ -986,11 +1225,12 @@ class TreeTimetableObservation(ObservationBuilder):
                             for i_station in range(len(timetable[handle][0])):
                                 time_now = self.env._elapsed_steps 
                                 if timetable[handle][0][i_station].position == position:
-                                    time_difference = timetable[handle][1][i_station] - time_now
+                                    time_difference = abs(timetable[handle][1][i_station] - time_now)
                                     if min_time > time_difference:
                                         index_of_my_station = i_station
-                            
-                            time_own_station = timetable[handle][1][index_of_my_station]       # save the time at which i have to reach it
+                                        
+                            time_difference = abs(timetable[handle][1][index_of_my_station] - time_now)
+                            time_own_station = time_difference       # save the time at which i have to reach it
                             dist_own_stations = tot_dist                      # save the distance from it
                             break
             
@@ -1006,7 +1246,9 @@ class TreeTimetableObservation(ObservationBuilder):
                                 
                                 index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
                                 
-                                time_other_station_encountered = timetable[i_agent][1][index_of_my_station]     # save the time at which i have to reach it
+                                time_now = self.env._elapsed_steps 
+                                difference_time = abs(timetable[i_agent][1][index_of_my_station] - time_now)
+                                
                                 
                                 # Calculate the min dist from the other agent to the station
                                 rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
@@ -1022,7 +1264,14 @@ class TreeTimetableObservation(ObservationBuilder):
                                     if dist < min_dist and dist != 0:
                                         min_dist = dist
                                 
-                                dist_other_station_encountered = min_dist                       # save the distance from it
+                                capacity_of_station = timetable[i_agent][0][index_of_my_station].capacity
+                                
+                                train_velocity = timetable[i_agent][4].maximum_velocity
+                                
+                                if difference_time <= min_dist * (1/train_velocity):
+                                    agents_in_station[index_of_my_station] += 1
+                                
+                                real_time_station_capacity = capacity_of_station - agents_in_station
                                 
                             if j_agent != i_agent:
                                 if position in self.env.next_station_to_reach[j_agent][0].rails:
@@ -1031,7 +1280,9 @@ class TreeTimetableObservation(ObservationBuilder):
 
                                     index_of_my_station = array_with_all_the_scheduled_stations.index(station)  # ATTENZIONE FUNZIONA SOLO PER SINGOLA CORSA
                                     
-                                    time_other_station_encountered = timetable[j_agent][1][index_of_my_station]     # save the time at which i have to reach it
+                                    time_now = self.env._elapsed_steps 
+                                    difference_time = abs(timetable[i_agent][1][index_of_my_station] - time_now)
+                                    
                                     
                                     # Calculate the min dist from the other agent to the station
                                     rail, optionals = self.env.rail_generator(self.env.width, self.env.height,  
@@ -1047,7 +1298,14 @@ class TreeTimetableObservation(ObservationBuilder):
                                         if dist < min_dist and dist != 0:
                                             min_dist = dist
                                     
-                                    dist_other_station_encountered = min_dist                       # save the distance from it
+                                    capacity_of_station = timetable[i_agent][0][index_of_my_station].capacity
+                                
+                                    train_velocity = timetable[i_agent][4].maximum_velocity
+                                    
+                                    if difference_time <= min_dist * (1/train_velocity):
+                                        agents_in_station[index_of_my_station] += 1
+                                    
+                                    real_time_station_capacity = capacity_of_station - agents_in_station
 
             
             # #############################
@@ -1120,8 +1378,7 @@ class TreeTimetableObservation(ObservationBuilder):
                         dist_own_stations = dist_own_stations,
                         own_stations_index = own_stations_index,
                         time_own_station = time_own_station,
-                        dist_other_station_encountered = dist_other_station_encountered,
-                        time_other_station_encountered = time_other_station_encountered,
+                        real_time_station_capacity = real_time_station_capacity,
                         #station_positions_other_agent_1 = position_of_stations_other_agent_1,
                         #station_index_other_agent_1 = station_timetable_index_other_agent_1,
                         #time_at_which_reach_station_other_agent_1 = time_station_other_agent_1,
