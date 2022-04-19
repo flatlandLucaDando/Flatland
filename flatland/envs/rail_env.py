@@ -1212,10 +1212,12 @@ class RailEnv(Environment):
             agent_speed = agent.speed_counter.speed
             
             # Control if the agent has to make an action or not...In this case ok, if not I jump at the end of this cycle
-            if self._elapsed_steps % (1 / agent_speed) != 0 and self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
+            if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
                 new_position, new_direction = agent.initial_position, agent.initial_position
                 continue
-            elif self._elapsed_steps % (1 / agent_speed) != 0 and agent.action_saver.is_action_saved:
+            elif not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                agent.action_saver.is_action_saved:
                 new_position, new_direction = agent.position, agent.position
                 continue
 
@@ -1294,10 +1296,12 @@ class RailEnv(Environment):
             i_agent = agent.handle
  
             # Control if the agent has to make an action or not...In this case ok, if not I jump at the end of this cycle
-            if self._elapsed_steps % (1 / agent_speed) != 0 and self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
+            if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
                 new_position, new_direction = agent.initial_position, agent.initial_position
                 continue
-            elif self._elapsed_steps % (1 / agent_speed) != 0 and agent.action_saver.is_action_saved:
+            elif not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                agent.action_saver.is_action_saved:
                 new_position, new_direction = agent.position, agent.position
                 continue
 
