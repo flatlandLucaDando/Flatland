@@ -145,7 +145,7 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
     else:
         video_save = False
 
-    test_id = now.strftime('%y-%m-%d - %H,%M')
+    test_id = now.strftime('%y-%m-%d-%H,%M')
     
     os.makedirs("output/training_n_" + test_id, exist_ok=True)
     if video_save:
@@ -733,8 +733,7 @@ for episode_idx in range(n_episodes + 1):
             #' Avg: {:.3f}'
             '\t 🎲 Epsilon: {:.3f} '
             '\t 🔀 Action Probs: {}'
-            '\t Metric: {}'
-            '\t Num of Plateau: {}'.format(
+            '\t Metric: {}'.format(
                 episode_idx,
                 normalized_score,
                 smoothed_normalized_score,
@@ -744,8 +743,7 @@ for episode_idx in range(n_episodes + 1):
                 #avg_num_of_conflict,
                 eps_start,
                 format_action_prob(action_probs),
-                metric,
-                num_of_plateau
+                metric
             ), end=" ")
         print()
 
