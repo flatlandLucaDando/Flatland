@@ -7,7 +7,7 @@ from random import *
 from datetime import datetime
 from statistics import mean
 
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter    
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
@@ -48,7 +48,7 @@ n_episodes = 15000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.9999
-max_steps = 500          # 1440 one day
+max_steps = 700          # 1440 one day
 checkpoint_interval = 100
 
 mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
@@ -215,10 +215,10 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         
         policy.end_episode(train=False)    
         # metric near to 1 is great result
-        for agent_handle in range(1):
+        for agent_handle in range(environment.number_of_agents):
             metric += environment.calculate_metric_single_agent(timetable, agent_handle)
             
-        metric = metric/1
+        metric = metric/environment.number_of_agents
         
         tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
         
@@ -673,24 +673,10 @@ for episode_idx in range(n_episodes + 1):
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
     # metric near to 1 is great result
-    for agent_handle in range(1):   # 1 is the interrupting agent...we don't consider it
+    for agent_handle in range(env.number_of_agents):   # 1 is the interrupting agent...we don't consider it
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
-    metric = metric/1               # TODO generalizza
-    
-    
-    if episode_idx <= plateau_window - 1:
-        score_mean[episode_idx] = score
-    else:
-        score_mean = score_mean[1:plateau_window] + [score]
-        
-    if episode_idx > plateau_window - 1:
-            previous_mean = mean(score_mean[0:int(plateau_window/2)])
-            current_mean = mean(score_mean[int(plateau_window/2):plateau_window])
-            if current_mean >= previous_mean - mean_tolerance and current_mean <= previous_mean + mean_tolerance:
-                num_of_plateau += 1  
-                """if avg_num_of_conflict >= tolerance_of_conflict:
-                    env.increase_conflict_penalty = True"""
+    metric = metric/env.number_of_agents               # TODO generalizza
     
     if multi_agent:
         # Epsilon decay
