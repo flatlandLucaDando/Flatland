@@ -969,13 +969,13 @@ if example_training == 'interruption 1':
  
 	interruption_convoy = Convoy(Type_of_convoy.REGIONAL)
 
-	convoys = [R102_convoy] #, R103_convoy, R104_convoy, R105_convoy, R106_convoy]
+	convoys = [R102_convoy, R103_convoy] #, R103_convoy, R104_convoy, R105_convoy, R106_convoy]
  
 	# 0
 	R102_convoy.add_train_run(train_run_0)
 	# R102_convoy.add_train_run(train_run_5)
 	#1
-	R103_convoy.add_train_run(train_run_1)
+	R103_convoy.add_train_run(train_run_2)
 	#2
 	R104_convoy.add_train_run(train_run_2)
 	R105_convoy.add_train_run(train_run_3)
