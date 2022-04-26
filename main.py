@@ -215,7 +215,7 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         
         policy.end_episode(train=False)    
         # metric near to 1 is great result
-        for agent_handle in range(1):
+        for agent_handle in range(environment.number_of_agents):
             metric += environment.calculate_metric_single_agent(timetable, agent_handle)
             
         metric = metric/environment.number_of_agents
@@ -673,7 +673,7 @@ for episode_idx in range(n_episodes + 1):
     print('Episode Nr. {}\t Score = {}'.format(episode_idx, score))
     
     # metric near to 1 is great result
-    for agent_handle in range(1):   # 1 is the interrupting agent...we don't consider it
+    for agent_handle in range(env.number_of_agents):   # 1 is the interrupting agent...we don't consider it
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
     metric = metric/env.number_of_agents               # TODO generalizza
