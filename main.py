@@ -218,7 +218,7 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         for agent_handle in range(1):
             metric += environment.calculate_metric_single_agent(timetable, agent_handle)
             
-        metric = metric/1
+        metric = metric/environment.number_of_agents
         
         tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
         
@@ -676,21 +676,8 @@ for episode_idx in range(n_episodes + 1):
     for agent_handle in range(1):   # 1 is the interrupting agent...we don't consider it
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
-    metric = metric/1               # TODO generalizza
+    metric = metric/env.number_of_agents               # TODO generalizza
     
-    
-    if episode_idx <= plateau_window - 1:
-        score_mean[episode_idx] = score
-    else:
-        score_mean = score_mean[1:plateau_window] + [score]
-        
-    if episode_idx > plateau_window - 1:
-            previous_mean = mean(score_mean[0:int(plateau_window/2)])
-            current_mean = mean(score_mean[int(plateau_window/2):plateau_window])
-            if current_mean >= previous_mean - mean_tolerance and current_mean <= previous_mean + mean_tolerance:
-                num_of_plateau += 1  
-                """if avg_num_of_conflict >= tolerance_of_conflict:
-                    env.increase_conflict_penalty = True"""
     
     if multi_agent:
         # Epsilon decay
@@ -752,9 +739,6 @@ for episode_idx in range(n_episodes + 1):
     writer.add_scalar("Dense Reward", env.dense_score, episode_idx)
     writer.add_scalar("Sparse Reward", env.sparse_score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
-    #writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
-    #writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
-    #writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
     writer.flush()
      
     if episode_idx % 50 == 0 and episode_idx != 0:
@@ -764,7 +748,7 @@ for episode_idx in range(n_episodes + 1):
 #animation = display_episode(frames)
 #plt.show()
 
-
+"""
 # --------------------------------------- #
 # --------------- TESTING --------------- #
 # --------------------------------------- #
@@ -835,7 +819,7 @@ for test_episode in range(num_of_tests + 1):
     for agent_handle in env.get_agent_handles():
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
         
-    metric = metric/num_of_agents
+    metric = metric/env.number_of_agents
     
     tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
@@ -850,4 +834,4 @@ for test_episode in range(num_of_tests + 1):
             ), end=" ")
 
 animation = display_episode(frames)
-plt.show()
+plt.show()"""
