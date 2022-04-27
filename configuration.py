@@ -951,7 +951,7 @@ if example_training == 'interruption 1':
 
 	# Train run for the first convoy
 	train_run_0 = Train_run(linea_genova_levante, starting_time = 3, from_depot = True, to_depot= True)
-	train_run_5 = Train_run(linea_genova_levante, starting_time = 70, from_depot = True, to_depot= True, inverse_train_direction= True)
+	train_run_5 = Train_run(linea_genova_levante, starting_time = 270, from_depot = True, to_depot= True, inverse_train_direction= True)
 	# Train run for the second convoy
 	train_run_1 = Train_run(linea_genova_levante, starting_time = 15, from_depot = True, to_depot= True)
 	# Train run for the first convoy
@@ -969,11 +969,11 @@ if example_training == 'interruption 1':
  
 	interruption_convoy = Convoy(Type_of_convoy.REGIONAL)
 
-	convoys = [R102_convoy, R103_convoy] #, R103_convoy, R104_convoy, R105_convoy, R106_convoy]
+	convoys = [R102_convoy]  #, R103_convoy] #, R103_convoy, R104_convoy, R105_convoy, R106_convoy]
  
 	# 0
 	R102_convoy.add_train_run(train_run_0)
-	# R102_convoy.add_train_run(train_run_5)
+	R102_convoy.add_train_run(train_run_5)
 	#1
 	R103_convoy.add_train_run(train_run_2)
 	#2

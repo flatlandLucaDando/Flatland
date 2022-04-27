@@ -48,7 +48,7 @@ n_episodes = 15000
 eps_start = 1
 eps_end = 0.01
 eps_decay = 0.9999
-max_steps = 500          # 1440 one day
+max_steps = 800          # 1440 one day
 checkpoint_interval = 100
 
 mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
