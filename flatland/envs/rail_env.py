@@ -883,6 +883,9 @@ class RailEnv(Environment):
         else:
             stations_to_reach = self.next_station_to_reach
         
+        if stations_to_reach == []:
+            return reward
+        
         for i_station in range(len(stations_to_reach)):
             stations_distance += len(a_star(self.rail, agent_position, \
                 stations_to_reach[i_station].position, respect_rail_directions = False))
