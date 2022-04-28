@@ -51,14 +51,6 @@ eps_decay = 0.9999
 max_steps = 800          # 1440 one day
 checkpoint_interval = 100
 
-mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
-                       # this is important to discover if a plateau is present in the rewards distribution over the episodes
-tolerance_of_conflict = 0.35     # Threshold of maximum percentage of conflicts that we accept                       
-
-num_of_plateau = 0
-
-plateau_window = 60
-
  # Unique ID for this training
 now = datetime.now()
 training_id = now.strftime('%y%m%d%H%M%S')
@@ -459,15 +451,9 @@ score = 0
 frame_step = 0
 frames = []
 
-# Conflicts 
-#avg_num_of_conflict = 0
-
-score_mean = [0] * plateau_window
-
-
-"""policy.load("checkpoints/policy_trained/200.pth")
-policy.load_replay_buffer("replay_buffers/policy_trained/200.pkl")
-policy.test()"""
+policy.load("checkpoints/colab/1600.pth")
+policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
+policy.test()
 
 
 os.makedirs("output/frames", exist_ok=True)
