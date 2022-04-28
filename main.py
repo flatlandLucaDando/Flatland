@@ -45,7 +45,7 @@ plt.rcParams["animation.html"] = "jshtml"
 
 ###### TRAINING PARAMETERS #######
 n_episodes = 15000
-eps_start = 1
+eps_start = 0.8
 eps_end = 0.01
 eps_decay = 0.9999
 max_steps = 800          # 1440 one day
