@@ -452,7 +452,7 @@ frame_step = 0
 frames = []
 
 policy.load("checkpoints/colab/1600.pth")
-policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
+#policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
 policy.test()
 
 
