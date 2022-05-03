@@ -973,7 +973,7 @@ if example_training == 'interruption 1':
  
 	# 0
 	R102_convoy.add_train_run(train_run_0)
-	R102_convoy.add_train_run(train_run_5)
+	#R102_convoy.add_train_run(train_run_5)
 	#1
 	R103_convoy.add_train_run(train_run_2)
 	#2

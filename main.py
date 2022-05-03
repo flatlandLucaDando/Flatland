@@ -64,7 +64,7 @@ training_id = now.strftime('%y%m%d%H%M%S')
 # % used in the sparse reward
 #########################################################
 
-render = False
+render = True
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -164,8 +164,8 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         
         for step in range(max_steps):
             
-            """make_interruption((6,7), env)
-            environment.interruption = True"""
+            make_interruption((6,7), env)
+            environment.interruption = True
              
             
             if video_save:
@@ -451,9 +451,9 @@ score = 0
 frame_step = 0
 frames = []
 
-policy.load("checkpoints/colab/1600.pth")
-#policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
-policy.test()
+"""policy.load("checkpoints/colab/1600.pth")
+policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
+policy.test()"""
 
 
 os.makedirs("output/frames", exist_ok=True)
@@ -521,8 +521,8 @@ for episode_idx in range(n_episodes + 1):
     # Here define the actions to do
         # Broken agents
         # INTERRUPTION --------------------------------------------------------------------------------------------
-        """make_interruption((6,7), env)
-        env.interruption = True"""
+        make_interruption((6,7), env)
+        env.interruption = True
 
         # policy.start_step ---------------------------------------------------------------------------------------
         policy_start_step_timer.start()
