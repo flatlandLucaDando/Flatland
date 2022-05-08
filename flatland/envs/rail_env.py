@@ -888,7 +888,7 @@ class RailEnv(Environment):
             stations_to_reach = self.next_station_to_reach[i_agent]
         else:
             stations_to_reach = self.next_station_to_reach
-        
+
         if stations_to_reach == []:
             return reward
         
@@ -1383,11 +1383,6 @@ class RailEnv(Environment):
             elif training == 'training1' or training == 'training1.1':
                 if i_agent < 2:
                     have_all_agents_ended &= (agent.state == TrainState.DONE)
-
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # to do Aggiusta in modo che sia più generale
             else:
                 if i_agent == 0:
                     have_all_agents_ended &= (agent.state == TrainState.DONE)
