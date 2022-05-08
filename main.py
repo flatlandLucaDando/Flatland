@@ -45,19 +45,11 @@ plt.rcParams["animation.html"] = "jshtml"
 
 ###### TRAINING PARAMETERS #######
 n_episodes = 15000
-eps_start = 1
+eps_start = 0.8
 eps_end = 0.01
 eps_decay = 0.99995
 max_steps = 300          # 1440 one day
 checkpoint_interval = 100
-
-mean_tolerance = 1     # Tolerance to compare the mean of the two windows of episodes
-                       # this is important to discover if a plateau is present in the rewards distribution over the episodes
-tolerance_of_conflict = 0.35     # Threshold of maximum percentage of conflicts that we accept                       
-
-num_of_plateau = 0
-
-plateau_window = 60
 
  # Unique ID for this training
 now = datetime.now()
@@ -145,7 +137,7 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
     else:
         video_save = False
 
-    test_id = now.strftime('%y-%m-%d - %H,%M')
+    test_id = now.strftime('%y-%m-%d-%H,%M')
     
     os.makedirs("output/training_n_" + test_id, exist_ok=True)
     if video_save:
@@ -459,14 +451,8 @@ score = 0
 frame_step = 0
 frames = []
 
-# Conflicts 
-#avg_num_of_conflict = 0
-
-score_mean = [0] * plateau_window
-
-
-"""policy.load("checkpoints/policy_trained/200.pth")
-policy.load_replay_buffer("replay_buffers/policy_trained/200.pkl")
+"""policy.load("checkpoints/colab/1600.pth")
+policy.load_replay_buffer("replay_buffers/colab/1600.pkl")
 policy.test()"""
 
 
@@ -719,8 +705,7 @@ for episode_idx in range(n_episodes + 1):
             #' Avg: {:.3f}'
             '\t 🎲 Epsilon: {:.3f} '
             '\t 🔀 Action Probs: {}'
-            '\t Metric: {}'
-            '\t Num of Plateau: {}'.format(
+            '\t Metric: {}'.format(
                 episode_idx,
                 normalized_score,
                 smoothed_normalized_score,
@@ -730,8 +715,7 @@ for episode_idx in range(n_episodes + 1):
                 #avg_num_of_conflict,
                 eps_start,
                 format_action_prob(action_probs),
-                metric,
-                num_of_plateau
+                metric
             ), end=" ")
         print()
 
@@ -740,9 +724,6 @@ for episode_idx in range(n_episodes + 1):
     writer.add_scalar("Dense Reward", env.dense_score, episode_idx)
     writer.add_scalar("Sparse Reward", env.sparse_score, episode_idx)
     writer.add_scalar("Metric", metric, episode_idx)
-    #writer.add_scalar("Num_of_conflicts", env.num_of_conflict, episode_idx)
-    #writer.add_scalar("Avg_num_of_conflicts", avg_num_of_conflict, episode_idx)
-    #writer.add_scalar('Conflict penalty', env.conflict_penalty, episode_idx)
     writer.flush()
      
     if episode_idx % 50 == 0 and episode_idx != 0:
@@ -752,7 +733,7 @@ for episode_idx in range(n_episodes + 1):
 #animation = display_episode(frames)
 #plt.show()
 
-
+"""
 # --------------------------------------- #
 # --------------- TESTING --------------- #
 # --------------------------------------- #
@@ -823,7 +804,7 @@ for test_episode in range(num_of_tests + 1):
     for agent_handle in env.get_agent_handles():
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
         
-    metric = metric/num_of_agents
+    metric = metric/env.number_of_agents
     
     tasks_finished = sum(done[idx] for idx in env.get_agent_handles())
 
@@ -838,4 +819,4 @@ for test_episode in range(num_of_tests + 1):
             ), end=" ")
 
 animation = display_episode(frames)
-plt.show()
+plt.show()"""

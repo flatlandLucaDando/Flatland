@@ -3,20 +3,12 @@ from argparse import ArgumentParser, Namespace
 
 
 parser = ArgumentParser()
-parser.add_argument("-n", "--n_episodes", help="number of episodes to run", default=5000,
-                    type=int)
-parser.add_argument("--n_agent_fixed", help="hold the number of agent fixed",
-                    action='store_true')
-parser.add_argument("--n_agent_iterate", help="iterate the number of agent fixed",
-                    action='store_true')
-parser.add_argument("-t", "--training_env_config", help="training config id (eg 0 for Test_0)",
-                    default=1,
-                    type=int)
-parser.add_argument("-e", "--evaluation_env_config",
-                    help="evaluation config id (eg 0 for Test_0)", default=3,
-                    type=int)
-parser.add_argument("--n_evaluation_episodes", help="number of evaluation episodes", default=10,
-                    type=int)
+parser.add_argument("-n", "--n_episodes", help="number of episodes to run", default=5000, type=int)
+parser.add_argument("--n_agent_fixed", help="hold the number of agent fixed", action='store_true')
+parser.add_argument("--n_agent_iterate", help="iterate the number of agent fixed", action='store_true')
+parser.add_argument("-t", "--training_env_config", help="training config id (eg 0 for Test_0)", default=1, type=int)
+parser.add_argument("-e", "--evaluation_env_config", help="evaluation config id (eg 0 for Test_0)", default=3, type=int)
+parser.add_argument("--n_evaluation_episodes", help="number of evaluation episodes", default=10, type=int)
 parser.add_argument("--checkpoint_interval", help="checkpoint interval", default=200, type=int)
 parser.add_argument("--eps_start", help="max exploration", default=1.0, type=float)
 parser.add_argument("--eps_end", help="min exploration", default=0.01, type=float)
@@ -52,12 +44,11 @@ parser.add_argument("--skip_unfinished_agent", default=9999.0, type=float)
 parser.add_argument("--render", help="render while training", action='store_true')
 parser.add_argument("--eval_render", help="render evaluation", action='store_true')
 parser.add_argument("--render_deadlocked", default=None, type=str)
-parser.add_argument("--policy",
-                    help="policy name [DDDQN, PPO, PPORCS, DecisionPointAgent, DecisionPointAgent_DDDQN,"
-                            "DeadLockAvoidance, DeadLockAvoidanceWithDecisionAgent, MultiDecisionAgent, MultiPolicy]",
-                    default="DDDQN")
-parser.add_argument("--action_size", help="define the action size [reduced,full]",
-                    default="reduced", type=str)
+parser.add_argument("--policy", help="policy name [DDDQN, PPO, PPORCS, DecisionPointAgent, DecisionPointAgent_DDDQN,"
+                    "DeadLockAvoidance, DeadLockAvoidanceWithDecisionAgent, MultiDecisionAgent, MultiPolicy]", default="DDDQN")
+parser.add_argument("--action_size", help="define the action size [reduced,full]", default="reduced", type=str)
+parser.add_argument('-f')
+
 
 training_params = parser.parse_args()
 

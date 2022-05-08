@@ -41,11 +41,3 @@ for r in range(height):
 
 # No high velocity lines, so make a (0,0) position
 	av_line = (0,0)
-	
-	# TODO sistema i binari destra e sinistra e su e giù
-	# Rails where the direction is right
-	right_rails = [(0,0)]
-	# Rails where the direction is left
-	left_rails = [(0,0)]
-	down_rails = [(0,0)]
-	up_rails = [(0,0)]
