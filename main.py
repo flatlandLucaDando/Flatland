@@ -7,7 +7,7 @@ from random import *
 from datetime import datetime
 from statistics import mean
 
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter    
 # In Flatland you can use custom observation builders and predicitors
 # Observation builders generate the observation needed by the controller
 # Preditctors can be used to do short time prediction which can help in avoiding conflicts in the network
@@ -663,7 +663,6 @@ for episode_idx in range(n_episodes + 1):
         metric += env.calculate_metric_single_agent(timetable, agent_handle)
     
     metric = metric/env.number_of_agents               # TODO generalizza
-    
     
     if multi_agent:
         # Epsilon decay

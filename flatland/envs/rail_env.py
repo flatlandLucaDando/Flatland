@@ -242,6 +242,9 @@ class RailEnv(Environment):
         
         self.dones_for_position = [False] * number_of_agents
         
+        # Flag to check if an action is done or not
+        self.elaborate_action = False
+        
         self.dense_score = 0
         self.sparse_score = 0
         
@@ -435,6 +438,9 @@ class RailEnv(Environment):
         
         self.dense_score = 0
         self.sparse_score = 0
+        
+        # Flag to check if an action is done or not
+        self.elaborate_action = False
         
         # List with all the station positions
         self.station_positions = []
@@ -882,7 +888,7 @@ class RailEnv(Environment):
             stations_to_reach = self.next_station_to_reach[i_agent]
         else:
             stations_to_reach = self.next_station_to_reach
-        
+
         if stations_to_reach == []:
             return reward
         
@@ -1215,15 +1221,18 @@ class RailEnv(Environment):
             agent_speed = agent.speed_counter.speed
             
             # Control if the agent has to make an action or not...In this case ok, if not I jump at the end of this cycle
-            if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
-                self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
+            """if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                agent.action_saver.is_action_saved and agent.state.is_off_map_state() and agent.state == TrainState.READY_TO_DEPART:
                 new_position, new_direction = agent.initial_position, agent.initial_position
                 continue
+            
             elif not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
-                agent.action_saver.is_action_saved:
+                agent.action_saver.is_action_saved and agent.state.is_on_map_state():
                 new_position, new_direction = agent.position, agent.position
-                continue
-
+                self.elaborate_action = True
+                continue"""
+            
+            self.elaborate_action = False
             agent.old_position = agent.position
             agent.old_direction = agent.direction
             # Generate malfunction
@@ -1299,14 +1308,14 @@ class RailEnv(Environment):
             i_agent = agent.handle
  
             # Control if the agent has to make an action or not...In this case ok, if not I jump at the end of this cycle
-            if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
-                self._elapsed_steps <= starting_time and agent.action_saver.is_action_saved:
+            """if not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
+                agent.action_saver.is_action_saved and agent.state.is_off_map_state():
                 new_position, new_direction = agent.initial_position, agent.initial_position
                 continue
             elif not agent.speed_counter.is_cell_exit and not agent.speed_counter.is_cell_entry and \
                 agent.action_saver.is_action_saved:
                 new_position, new_direction = agent.position, agent.position
-                continue
+                continue"""
 
             ## Update positions
             if agent.malfunction_handler.in_malfunction:
@@ -1374,16 +1383,14 @@ class RailEnv(Environment):
             elif training == 'training1' or training == 'training1.1':
                 if i_agent < 2:
                     have_all_agents_ended &= (agent.state == TrainState.DONE)
-
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # to do Aggiusta in modo che sia più generale
             else:
                 if i_agent == 0:
                     have_all_agents_ended &= (agent.state == TrainState.DONE)
 
-            ## Update counters (malfunction and speed)
+            # If an action is chosen and the agent have to do (not done yet) the state is moving
+            if self.elaborate_action and not agent.state == TrainState.DONE and self._elapsed_steps >= agent.earliest_departure:
+                agent.state = TrainState.MOVING
+            ## Update counters (malfunction and speed)            
             agent.speed_counter.update_counter(agent.state, agent.old_position)
                                             #    agent.state_machine.previous_state)
             agent.malfunction_handler.update_counter()
