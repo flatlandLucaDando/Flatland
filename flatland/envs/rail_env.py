@@ -4,7 +4,7 @@ Definition of the RailEnv environment.
 from hashlib import new
 import random
 from re import I, T
-from tkinter import N
+#from tkinter import N
 
 from typing import List, Optional, Dict, Tuple
 

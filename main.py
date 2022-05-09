@@ -45,11 +45,11 @@ plt.rcParams["animation.html"] = "jshtml"
 
 ###### TRAINING PARAMETERS #######
 n_episodes = 15000
-eps_start = 0.8
+eps_start = 1
 eps_end = 0.01
 eps_decay = 0.9999
-max_steps = 800          # 1440 one day
-checkpoint_interval = 100
+max_steps = 1200          # 1440 one day
+checkpoint_interval = 200
 
  # Unique ID for this training
 now = datetime.now()
@@ -64,7 +64,7 @@ training_id = now.strftime('%y%m%d%H%M%S')
 # % used in the sparse reward
 #########################################################
 
-render = True
+render = False
 
 ######### FLAGS ##########
 # Flag for the first training
@@ -132,7 +132,7 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
     total_steps = 0
 
     # Flag to choose if save video of tests or not
-    if episode_idx % 500 == 0:
+    if episode_idx % 200 == 0:
         video_save = True
     else:
         video_save = False
@@ -164,8 +164,8 @@ def evaluate_policy(environment, environment_renderer, tree_observation, policy,
         
         for step in range(max_steps):
             
-            make_interruption((6,7), env)
-            environment.interruption = True
+            """make_interruption((6,7), env)
+            environment.interruption = True"""
              
             
             if video_save:
@@ -521,8 +521,8 @@ for episode_idx in range(n_episodes + 1):
     # Here define the actions to do
         # Broken agents
         # INTERRUPTION --------------------------------------------------------------------------------------------
-        make_interruption((6,7), env)
-        env.interruption = True
+        """make_interruption((6,7), env)
+        env.interruption = True"""
 
         # policy.start_step ---------------------------------------------------------------------------------------
         policy_start_step_timer.start()
