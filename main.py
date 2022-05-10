@@ -47,7 +47,7 @@ plt.rcParams["animation.html"] = "jshtml"
 n_episodes = 15000
 eps_start = 1
 eps_end = 0.01
-eps_decay = 0.9999
+eps_decay = 0.99995
 max_steps = 1200          # 1440 one day
 checkpoint_interval = 200
 
